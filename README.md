@@ -36,6 +36,36 @@ server/   Express backend
 5. Start the frontend with `npm run dev:client`.
 6. Start the backend with `npm run dev:server`.
 
+## Run Locally
+
+Open two terminals in the project root: `C:\Users\Owner\Desktop\Ray final year project`
+
+Terminal 1:
+
+```powershell
+npm.cmd install
+npm.cmd run dev:server
+```
+
+Terminal 2:
+
+```powershell
+npm.cmd run dev:client
+```
+
+Local addresses:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:5000/api`
+- Health check: `http://localhost:5000/api/health`
+
+If `npm install` is too heavy from the root, you can install per workspace:
+
+```powershell
+npm.cmd install --workspace client
+npm.cmd install --workspace server
+```
+
 ## Firebase Notes
 
 The project already includes:

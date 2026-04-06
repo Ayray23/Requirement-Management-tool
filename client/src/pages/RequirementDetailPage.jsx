@@ -1,11 +1,57 @@
+import { useEffect, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
+import { getRequirementById } from "../app/api";
 import { requirementActivity, requirements } from "../data/mockData";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 
 function RequirementDetailPage() {
   const { requirementId } = useParams();
-  const requirement = requirements.find((item) => item.id === requirementId);
+  const fallbackRequirement = requirements.find((item) => item.id === requirementId);
+  const [requirement, setRequirement] = useState(fallbackRequirement ?? null);
+  const [activity, setActivity] = useState(
+    fallbackRequirement ? requirementActivity.filter((item) => item.requirementId === fallbackRequirement.id) : []
+  );
+  const [detailState, setDetailState] = useState({
+    loading: true,
+    error: ""
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    if (!requirementId) {
+      setDetailState({
+        loading: false,
+        error: "No requirement id was provided."
+      });
+      return undefined;
+    }
+
+    getRequirementById(requirementId)
+      .then((data) => {
+        if (active) {
+          setRequirement(data);
+          setActivity(data.activity ?? []);
+          setDetailState({
+            loading: false,
+            error: ""
+          });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDetailState({
+            loading: false,
+            error: fallbackRequirement ? "Live detail data is unavailable, so demo data is being shown." : "Requirement not found."
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [fallbackRequirement, requirementId]);
 
   if (!requirement) {
     return (
@@ -14,13 +60,15 @@ function RequirementDetailPage() {
           eyebrow="Requirement Detail"
           title="Requirement not found"
           description="The requirement you opened does not exist in the current dataset."
-          actions={<Button as={NavLink} to="/requirements" variant="secondary">Back to requirements</Button>}
+          actions={
+            <Button as={NavLink} to="/requirements" variant="secondary">
+              Back to requirements
+            </Button>
+          }
         />
       </Card>
     );
   }
-
-  const activity = requirementActivity.filter((item) => item.requirementId === requirement.id);
 
   return (
     <div className="grid gap-5">
@@ -41,6 +89,20 @@ function RequirementDetailPage() {
           }
         />
       </Card>
+
+      {detailState.loading ? (
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-semibold text-cyan-100">
+          Loading requirement detail...
+        </div>
+      ) : detailState.error ? (
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 font-semibold text-amber-200">
+          {detailState.error}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-semibold text-emerald-200">
+          Requirement detail loaded successfully.
+        </div>
+      )}
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>

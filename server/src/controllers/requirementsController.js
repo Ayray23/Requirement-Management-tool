@@ -1,10 +1,31 @@
-import { requirements } from "../data/mockData.js";
+import { requirementActivity, requirements } from "../data/mockData.js";
 
 export function getRequirements(req, res) {
   res.json({
     ok: true,
     count: requirements.length,
     data: requirements
+  });
+}
+
+export function getRequirementById(req, res) {
+  const { id } = req.params;
+  const requirement = requirements.find((item) => item.id === id);
+
+  if (!requirement) {
+    res.status(404).json({
+      ok: false,
+      message: "Requirement not found"
+    });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    data: {
+      ...requirement,
+      activity: requirementActivity.filter((item) => item.requirementId === requirement.id)
+    }
   });
 }
 

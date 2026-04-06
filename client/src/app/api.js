@@ -26,6 +26,11 @@ export async function getRequirementsData() {
   return payload.data;
 }
 
+export async function getRequirementById(requirementId) {
+  const payload = await request(`/requirements/${requirementId}`);
+  return payload.data;
+}
+
 export async function getAnalyticsData() {
   const payload = await request("/analytics");
   return payload.data;

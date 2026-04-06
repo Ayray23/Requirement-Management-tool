@@ -19,10 +19,7 @@ function RequirementsPage() {
       .then((data) => {
         if (active && Array.isArray(data)) {
           setRequirementsData(data);
-          setRequirementsState({
-            loading: false,
-            error: ""
-          });
+          setRequirementsState({ loading: false, error: "" });
         }
       })
       .catch(() => {
@@ -52,50 +49,50 @@ function RequirementsPage() {
       .includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "All" || requirement.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
   const availableStatuses = ["All", ...new Set(requirementsData.map((item) => item.status))];
 
   return (
-    <div className="page-grid">
-      <section className="page-header-card">
-        <div>
-          <p className="eyebrow">Requirements Repository</p>
-          <h1>All requirements</h1>
-          <p className="muted">Table-style requirement management with clear status, ownership, and sprint alignment.</p>
-        </div>
+    <div className="grid gap-5">
+      <section className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Requirements Repository</p>
+        <h1 className="mt-3 font-display text-4xl font-bold text-white">All requirements</h1>
+        <p className="mt-3 text-slate-400">Table-style requirement management with search, status filter, and progress visibility.</p>
       </section>
-      <DataStateBanner
-        loading={requirementsState.loading}
-        error={requirementsState.error}
-        loadingText="Loading requirement records..."
-      />
-      <section className="requirements-toolbar">
-        <div className="summary-row">
-          <article className="summary-chip">
-            <strong>{summary.total}</strong>
-            <span>Total requirements</span>
+
+      <DataStateBanner loading={requirementsState.loading} error={requirementsState.error} loadingText="Loading requirement records..." />
+
+      <section className="grid gap-4">
+        <div className="flex flex-wrap gap-4">
+          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
+            <strong className="block text-3xl font-bold text-white">{summary.total}</strong>
+            <span className="text-sm text-slate-400">Total requirements</span>
           </article>
-          <article className="summary-chip">
-            <strong>{summary.active}</strong>
-            <span>Active items</span>
+          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
+            <strong className="block text-3xl font-bold text-white">{summary.active}</strong>
+            <span className="text-sm text-slate-400">Active items</span>
           </article>
-          <article className="summary-chip">
-            <strong>{summary.critical}</strong>
-            <span>Critical priority</span>
+          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
+            <strong className="block text-3xl font-bold text-white">{summary.critical}</strong>
+            <span className="text-sm text-slate-400">Critical priority</span>
           </article>
         </div>
-        <div className="filter-row">
+
+        <div className="flex flex-wrap gap-4">
           <input
-            className="filter-input"
+            className="min-h-[52px] flex-1 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-fuchsia-400/40"
             type="text"
             placeholder="Search by title, ID, module, or owner"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
-          <select className="filter-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <select
+            className="min-h-[52px] min-w-[200px] rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
             {availableStatuses.map((status) => (
               <option key={status} value={status}>
                 {status}
@@ -104,37 +101,48 @@ function RequirementsPage() {
           </select>
         </div>
       </section>
-      <section className="panel table-panel">
-        <table>
+
+      <section className="overflow-x-auto rounded-[28px] border border-white/10 bg-slate-950/50 p-4 shadow-glow backdrop-blur-xl">
+        <table className="min-w-full border-collapse">
           <thead>
-            <tr>
-              <th>ID</th>
-              <th>Title</th>
-              <th>Module</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Owner</th>
-              <th>Progress</th>
+            <tr className="border-b border-white/10 text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+              <th className="px-3 py-4">ID</th>
+              <th className="px-3 py-4">Title</th>
+              <th className="px-3 py-4">Module</th>
+              <th className="px-3 py-4">Priority</th>
+              <th className="px-3 py-4">Status</th>
+              <th className="px-3 py-4">Owner</th>
+              <th className="px-3 py-4">Progress</th>
             </tr>
           </thead>
           <tbody>
             {filteredRequirements.map((requirement) => (
-              <tr key={requirement.id}>
-                <td>{requirement.id}</td>
-                <td>{requirement.title}</td>
-                <td>{requirement.module}</td>
-                <td>
-                  <span className={`pill ${requirement.priority.toLowerCase()}`}>{requirement.priority}</span>
+              <tr key={requirement.id} className="border-b border-white/5 text-sm text-slate-200">
+                <td className="px-3 py-4 text-slate-400">{requirement.id}</td>
+                <td className="px-3 py-4">{requirement.title}</td>
+                <td className="px-3 py-4">{requirement.module}</td>
+                <td className="px-3 py-4">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+                      requirement.priority === "Critical"
+                        ? "border-rose-400/30 text-rose-200"
+                        : requirement.priority === "High"
+                          ? "border-orange-400/30 text-orange-200"
+                          : "border-sky-400/30 text-sky-200"
+                    }`}
+                  >
+                    {requirement.priority}
+                  </span>
                 </td>
-                <td>{requirement.status}</td>
-                <td>{requirement.owner}</td>
-                <td>{requirement.progress}%</td>
+                <td className="px-3 py-4">{requirement.status}</td>
+                <td className="px-3 py-4">{requirement.owner}</td>
+                <td className="px-3 py-4">{requirement.progress}%</td>
               </tr>
             ))}
             {filteredRequirements.length === 0 ? (
               <tr>
-                <td colSpan="7">
-                  <div className="empty-table-state">No requirements match the current search and filter.</div>
+                <td className="px-3 py-8 text-center text-slate-400" colSpan="7">
+                  No requirements match the current search and filter.
                 </td>
               </tr>
             ) : null}

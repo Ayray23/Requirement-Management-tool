@@ -26,10 +26,7 @@ function AnalyticsPage() {
             trend: data.trend ?? analyticsTrend,
             distribution: data.distribution ?? analyticsModules
           });
-          setAnalyticsState({
-            loading: false,
-            error: ""
-          });
+          setAnalyticsState({ loading: false, error: "" });
         }
       })
       .catch(() => {
@@ -47,32 +44,29 @@ function AnalyticsPage() {
   }, []);
 
   return (
-    <div className="page-grid">
-      <section className="page-header-card">
-        <div>
-          <p className="eyebrow">Analytics & Reports</p>
-          <h1>Sprint 7 performance intelligence</h1>
-          <p className="muted">Visualize module distribution, burndown trends, and outcome quality in one analytics suite.</p>
-        </div>
+    <div className="grid gap-5">
+      <section className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Analytics & Reports</p>
+        <h1 className="mt-3 font-display text-4xl font-bold text-white">Sprint 7 performance intelligence</h1>
+        <p className="mt-3 text-slate-400">Visualize module distribution, burndown trends, and outcome quality in one analytics suite.</p>
       </section>
+
       <DataStateBanner loading={analyticsState.loading} error={analyticsState.error} loadingText="Loading analytics..." />
 
-      <section className="mini-grid">
+      <section className="grid gap-4 xl:grid-cols-4">
         {analyticsData.cards.map((card) => (
-          <article className="mini-card" key={card.label}>
-            <h3>{card.value}</h3>
-            <p>{card.label}</p>
+          <article key={card.label} className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5 shadow-glow">
+            <h3 className="text-3xl font-bold text-white">{card.value}</h3>
+            <p className="mt-2 text-sm text-slate-400">{card.label}</p>
           </article>
         ))}
       </section>
 
-      <section className="two-column">
-        <article className="panel chart-panel">
-          <div className="panel-header">
-            <h3>Burn-down chart</h3>
-          </div>
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={280}>
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
+          <h3 className="text-2xl font-semibold text-white">Burn-down chart</h3>
+          <div className="mt-6 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analyticsData.trend}>
                 <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" />
                 <XAxis dataKey="name" stroke="#8b9cc0" />
@@ -85,12 +79,10 @@ function AnalyticsPage() {
           </div>
         </article>
 
-        <article className="panel chart-panel">
-          <div className="panel-header">
-            <h3>Requirements by module</h3>
-          </div>
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={280}>
+        <article className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
+          <h3 className="text-2xl font-semibold text-white">Requirements by module</h3>
+          <div className="mt-6 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analyticsData.distribution}>
                 <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
                 <XAxis dataKey="name" stroke="#8b9cc0" />

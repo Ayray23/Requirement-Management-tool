@@ -28,10 +28,7 @@ function WorkbenchPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setSubmitState({
-      status: "loading",
-      message: "Creating requirement..."
-    });
+    setSubmitState({ status: "loading", message: "Creating requirement..." });
 
     try {
       const createdRequirement = await createRequirement({
@@ -44,7 +41,7 @@ function WorkbenchPage() {
         message: `${createdRequirement.id} created successfully and assigned to ${createdRequirement.owner}.`
       });
       setFormData(initialForm);
-    } catch (error) {
+    } catch {
       setSubmitState({
         status: "error",
         message: "Could not create the requirement right now. Check the API and try again."
@@ -53,69 +50,80 @@ function WorkbenchPage() {
   }
 
   return (
-    <div className="workbench-layout">
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">AI Workbench</p>
-            <h3>Create or refine a requirement</h3>
-          </div>
-        </div>
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label>Requirement title</label>
-            <input name="title" value={formData.title} onChange={handleChange} />
-          </div>
-          <div className="input-group">
-            <label>Priority</label>
-            <input name="priority" value={formData.priority} onChange={handleChange} />
-          </div>
-          <div className="input-group">
-            <label>Module</label>
-            <input name="module" value={formData.module} onChange={handleChange} />
-          </div>
-          <div className="input-group">
-            <label>Sprint</label>
-            <input name="sprint" value={formData.sprint} onChange={handleChange} />
-          </div>
-          <div className="input-group full">
-            <label>Description</label>
-            <textarea name="description" rows="8" value={formData.description} onChange={handleChange} />
-          </div>
-          <div className="form-actions full">
-            <button className="secondary-button inline-button" type="button" onClick={() => setFormData(initialForm)}>
+    <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+      <section className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-[0.24em] text-slate-300">AI Workbench</p>
+        <h3 className="mt-2 text-3xl font-semibold text-white">Create or refine a requirement</h3>
+
+        <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">Requirement title</span>
+            <input className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40" name="title" value={formData.title} onChange={handleChange} />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">Priority</span>
+            <input className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40" name="priority" value={formData.priority} onChange={handleChange} />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">Module</span>
+            <input className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40" name="module" value={formData.module} onChange={handleChange} />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-200">Sprint</span>
+            <input className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40" name="sprint" value={formData.sprint} onChange={handleChange} />
+          </label>
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-medium text-slate-200">Description</span>
+            <textarea className="min-h-[220px] rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40" name="description" value={formData.description} onChange={handleChange} />
+          </label>
+
+          <div className="flex flex-wrap justify-end gap-3 md:col-span-2">
+            <button className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-slate-100" type="button" onClick={() => setFormData(initialForm)}>
               Reset form
             </button>
-            <button className="primary-button inline-button" type="submit" disabled={submitState.status === "loading"}>
+            <button className="rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 font-semibold text-white" type="submit">
               {submitState.status === "loading" ? "Saving..." : "Create requirement"}
             </button>
           </div>
+
           {submitState.message ? (
-            <div className={`form-status ${submitState.status}`}>
-              <p>{submitState.message}</p>
+            <div
+              className={`rounded-2xl border px-4 py-3 text-sm font-semibold md:col-span-2 ${
+                submitState.status === "success"
+                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                  : submitState.status === "error"
+                    ? "border-red-400/20 bg-red-400/10 text-red-200"
+                    : "border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
+              }`}
+            >
+              {submitState.message}
             </div>
           ) : null}
         </form>
       </section>
-      <aside className="panel accent-panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Smart Assist</p>
-            <h3>Conflict and similarity alerts</h3>
+
+      <aside className="rounded-[28px] border border-fuchsia-400/20 bg-fuchsia-400/10 p-6 shadow-glow backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-[0.24em] text-slate-200">Smart Assist</p>
+        <h3 className="mt-2 text-3xl font-semibold text-white">Conflict and similarity alerts</h3>
+        <div className="mt-6 flex gap-3 rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+          <div className="pt-1 text-fuchsia-200">
+            <Sparkles />
           </div>
+          <p className="text-sm leading-7 text-slate-200">
+            REQ-019 contains overlapping session management rules that may conflict with this requirement.
+          </p>
         </div>
-        <div className="insight-item">
-          <Sparkles />
-          <p>REQ-019 contains overlapping session management rules that may conflict with this requirement.</p>
+
+        <div className="mt-4 grid gap-3">
+          {collaborationThreads.map((thread) => (
+            <article key={thread.title} className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+              <small className="text-xs uppercase tracking-[0.18em] text-slate-400">{thread.tag}</small>
+              <h4 className="mt-2 text-lg font-semibold text-white">{thread.title}</h4>
+              <p className="mt-2 text-sm leading-7 text-slate-300">{thread.excerpt}</p>
+              <span className="mt-2 inline-block text-xs text-slate-400">{thread.participants} participants</span>
+            </article>
+          ))}
         </div>
-        {collaborationThreads.map((thread) => (
-          <article key={thread.title} className="thread-card">
-            <small>{thread.tag}</small>
-            <h4>{thread.title}</h4>
-            <p>{thread.excerpt}</p>
-            <span>{thread.participants} participants</span>
-          </article>
-        ))}
       </aside>
     </div>
   );

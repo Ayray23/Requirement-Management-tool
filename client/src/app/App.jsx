@@ -163,6 +163,10 @@ function DashboardPage() {
     timeline,
     insights
   });
+  const [dashboardState, setDashboardState] = useState({
+    loading: true,
+    error: ""
+  });
 
   useEffect(() => {
     let active = true;
@@ -175,10 +179,19 @@ function DashboardPage() {
             timeline: data.timeline ?? timeline,
             insights: data.insights ?? insights
           });
+          setDashboardState({
+            loading: false,
+            error: ""
+          });
         }
       })
       .catch(() => {
-        // Keep mock data available when the API is offline during local design work.
+        if (active) {
+          setDashboardState({
+            loading: false,
+            error: "Live dashboard data is unavailable, so demo data is being shown."
+          });
+        }
       });
 
     return () => {
@@ -205,6 +218,7 @@ function DashboardPage() {
           </NavLink>
         </div>
       </section>
+      <DataStateBanner loading={dashboardState.loading} error={dashboardState.error} loadingText="Loading dashboard insights..." />
 
       <section className="kpi-grid">
         {dashboardData.kpis.map((item) => (
@@ -258,6 +272,10 @@ function RequirementsPage() {
   const [requirementsData, setRequirementsData] = useState(requirements);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [requirementsState, setRequirementsState] = useState({
+    loading: true,
+    error: ""
+  });
 
   useEffect(() => {
     let active = true;
@@ -266,10 +284,19 @@ function RequirementsPage() {
       .then((data) => {
         if (active && Array.isArray(data)) {
           setRequirementsData(data);
+          setRequirementsState({
+            loading: false,
+            error: ""
+          });
         }
       })
       .catch(() => {
-        // Use seeded records while the API is unavailable.
+        if (active) {
+          setRequirementsState({
+            loading: false,
+            error: "Could not reach the API, so the seeded requirement list is being shown."
+          });
+        }
       });
 
     return () => {
@@ -305,6 +332,11 @@ function RequirementsPage() {
           <p className="muted">Table-style requirement management with clear status, ownership, and sprint alignment.</p>
         </div>
       </section>
+      <DataStateBanner
+        loading={requirementsState.loading}
+        error={requirementsState.error}
+        loadingText="Loading requirement records..."
+      />
       <section className="requirements-toolbar">
         <div className="summary-row">
           <article className="summary-chip">
@@ -507,6 +539,10 @@ function AnalyticsPage() {
     trend: analyticsTrend,
     distribution: analyticsModules
   });
+  const [analyticsState, setAnalyticsState] = useState({
+    loading: true,
+    error: ""
+  });
 
   useEffect(() => {
     let active = true;
@@ -519,10 +555,19 @@ function AnalyticsPage() {
             trend: data.trend ?? analyticsTrend,
             distribution: data.distribution ?? analyticsModules
           });
+          setAnalyticsState({
+            loading: false,
+            error: ""
+          });
         }
       })
       .catch(() => {
-        // Preserve mock charts when the backend is not yet running.
+        if (active) {
+          setAnalyticsState({
+            loading: false,
+            error: "Analytics service is offline right now, so this page is showing demo metrics."
+          });
+        }
       });
 
     return () => {
@@ -539,6 +584,7 @@ function AnalyticsPage() {
           <p className="muted">Visualize module distribution, burndown trends, and outcome quality in one analytics suite.</p>
         </div>
       </section>
+      <DataStateBanner loading={analyticsState.loading} error={analyticsState.error} loadingText="Loading analytics..." />
 
       <section className="mini-grid">
         {analyticsData.cards.map((card) => (
@@ -646,6 +692,18 @@ function Stat({ label, value }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function DataStateBanner({ loading, error, loadingText }) {
+  if (loading) {
+    return <div className="data-banner info">{loadingText}</div>;
+  }
+
+  if (error) {
+    return <div className="data-banner warning">{error}</div>;
+  }
+
+  return <div className="data-banner success">Live data connected successfully.</div>;
 }
 
 export default App;

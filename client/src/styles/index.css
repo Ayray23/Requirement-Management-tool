@@ -314,6 +314,28 @@ textarea {
   gap: 1.25rem;
 }
 
+.data-banner {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+}
+
+.data-banner.info {
+  background: rgba(34, 211, 238, 0.12);
+  color: #bae6fd;
+}
+
+.data-banner.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+}
+
+.data-banner.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
+}
+
 .page-header-card,
 .panel,
 .kpi-card,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar, CartesianGrid } from "recharts";
 import {
   BarChart3,
@@ -57,6 +57,53 @@ function App() {
 }
 
 function LoginPage() {
+  const navigate = useNavigate();
+  const [credentials, setCredentials] = useState({
+    email: "alex.morgan@techcorp.io",
+    password: "password123"
+  });
+  const [loginState, setLoginState] = useState({
+    status: "idle",
+    message: ""
+  });
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setCredentials((current) => ({
+      ...current,
+      [name]: value
+    }));
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+
+    if (!credentials.email.includes("@")) {
+      setLoginState({
+        status: "error",
+        message: "Please enter a valid email address."
+      });
+      return;
+    }
+
+    if (credentials.password.trim().length < 6) {
+      setLoginState({
+        status: "error",
+        message: "Password should be at least 6 characters long."
+      });
+      return;
+    }
+
+    setLoginState({
+      status: "success",
+      message: "Signed in successfully. Redirecting to your workspace..."
+    });
+
+    window.setTimeout(() => {
+      navigate("/dashboard");
+    }, 700);
+  }
+
   return (
     <main className="auth-page">
       <section className="hero-panel">
@@ -85,18 +132,21 @@ function LoginPage() {
         <p className="eyebrow">Welcome back</p>
         <h2>Sign in to your workspace</h2>
         <p className="muted">Prototype-ready auth screen matching the provided design language.</p>
-        <div className="input-group">
-          <label>Email address</label>
-          <input defaultValue="alex.morgan@techcorp.io" />
-        </div>
-        <div className="input-group">
-          <label>Password</label>
-          <input type="password" defaultValue="password123" />
-        </div>
-        <NavLink className="primary-button" to="/dashboard">
-          Enter workspace
-          <ChevronRight />
-        </NavLink>
+        <form onSubmit={handleLogin}>
+          <div className="input-group">
+            <label>Email address</label>
+            <input name="email" type="email" value={credentials.email} onChange={handleChange} />
+          </div>
+          <div className="input-group">
+            <label>Password</label>
+            <input name="password" type="password" value={credentials.password} onChange={handleChange} />
+          </div>
+          <button className="primary-button auth-submit" type="submit">
+            Enter workspace
+            <ChevronRight />
+          </button>
+        </form>
+        {loginState.message ? <div className={`auth-feedback ${loginState.status}`}>{loginState.message}</div> : null}
         <button className="secondary-button" type="button">
           Continue with Google
         </button>

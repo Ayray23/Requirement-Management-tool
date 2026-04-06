@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar, CartesianGrid } from "recharts";
 import {
@@ -21,6 +22,7 @@ import {
   timeline,
   userProfile
 } from "../data/mockData";
+import { getAnalyticsData, getDashboardData, getRequirementsData } from "./api";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -156,6 +158,34 @@ function Shell({ children }) {
 }
 
 function DashboardPage() {
+  const [dashboardData, setDashboardData] = useState({
+    kpis,
+    timeline,
+    insights
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    getDashboardData()
+      .then((data) => {
+        if (active) {
+          setDashboardData({
+            kpis: data.kpis ?? kpis,
+            timeline: data.timeline ?? timeline,
+            insights: data.insights ?? insights
+          });
+        }
+      })
+      .catch(() => {
+        // Keep mock data available when the API is offline during local design work.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="page-grid">
       <section className="page-header-card spotlight">
@@ -177,7 +207,7 @@ function DashboardPage() {
       </section>
 
       <section className="kpi-grid">
-        {kpis.map((item) => (
+        {dashboardData.kpis.map((item) => (
           <article key={item.label} className={`kpi-card ${item.tone}`}>
             <div className="kpi-icon">{item.icon}</div>
             <h2>{item.value}</h2>
@@ -196,7 +226,7 @@ function DashboardPage() {
             </div>
           </div>
           <div className="timeline-list">
-            {timeline.map((item) => (
+            {dashboardData.timeline.map((item) => (
               <div key={item} className="timeline-item">
                 <span className="timeline-dot" />
                 <p>{item}</p>
@@ -212,7 +242,7 @@ function DashboardPage() {
               <h3>Recommended actions</h3>
             </div>
           </div>
-          {insights.map((item) => (
+          {dashboardData.insights.map((item) => (
             <div key={item} className="insight-item">
               <Sparkles />
               <p>{item}</p>
@@ -225,6 +255,26 @@ function DashboardPage() {
 }
 
 function RequirementsPage() {
+  const [requirementsData, setRequirementsData] = useState(requirements);
+
+  useEffect(() => {
+    let active = true;
+
+    getRequirementsData()
+      .then((data) => {
+        if (active && Array.isArray(data)) {
+          setRequirementsData(data);
+        }
+      })
+      .catch(() => {
+        // Use seeded records while the API is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="page-grid">
       <section className="page-header-card">
@@ -248,7 +298,7 @@ function RequirementsPage() {
             </tr>
           </thead>
           <tbody>
-            {requirements.map((requirement) => (
+            {requirementsData.map((requirement) => (
               <tr key={requirement.id}>
                 <td>{requirement.id}</td>
                 <td>{requirement.title}</td>
@@ -329,6 +379,34 @@ function WorkbenchPage() {
 }
 
 function AnalyticsPage() {
+  const [analyticsData, setAnalyticsData] = useState({
+    cards: analyticsCards,
+    trend: analyticsTrend,
+    distribution: analyticsModules
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    getAnalyticsData()
+      .then((data) => {
+        if (active) {
+          setAnalyticsData({
+            cards: data.cards ?? analyticsCards,
+            trend: data.trend ?? analyticsTrend,
+            distribution: data.distribution ?? analyticsModules
+          });
+        }
+      })
+      .catch(() => {
+        // Preserve mock charts when the backend is not yet running.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="page-grid">
       <section className="page-header-card">
@@ -340,7 +418,7 @@ function AnalyticsPage() {
       </section>
 
       <section className="mini-grid">
-        {analyticsCards.map((card) => (
+        {analyticsData.cards.map((card) => (
           <article className="mini-card" key={card.label}>
             <h3>{card.value}</h3>
             <p>{card.label}</p>
@@ -355,7 +433,7 @@ function AnalyticsPage() {
           </div>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={analyticsTrend}>
+              <LineChart data={analyticsData.trend}>
                 <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" />
                 <XAxis dataKey="name" stroke="#8b9cc0" />
                 <YAxis stroke="#8b9cc0" />
@@ -373,7 +451,7 @@ function AnalyticsPage() {
           </div>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={analyticsModules}>
+              <BarChart data={analyticsData.distribution}>
                 <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
                 <XAxis dataKey="name" stroke="#8b9cc0" />
                 <YAxis stroke="#8b9cc0" />

@@ -390,6 +390,59 @@ textarea {
   overflow-x: auto;
 }
 
+.requirements-toolbar {
+  display: grid;
+  gap: 1rem;
+}
+
+.summary-row,
+.filter-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.summary-chip {
+  min-width: 180px;
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+  background: rgba(10, 18, 32, 0.84);
+  border: 1px solid var(--line);
+}
+
+.summary-chip strong {
+  display: block;
+  font-size: 1.5rem;
+}
+
+.summary-chip span {
+  color: var(--muted);
+}
+
+.filter-input,
+.filter-select {
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(10, 18, 32, 0.84);
+  color: #ebf2ff;
+  padding: 0.9rem 1rem;
+}
+
+.filter-input {
+  flex: 1 1 420px;
+}
+
+.filter-select {
+  min-width: 200px;
+}
+
+.empty-table-state {
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

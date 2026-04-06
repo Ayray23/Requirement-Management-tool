@@ -3,6 +3,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, 
 import { getAnalyticsData } from "../app/api";
 import DataStateBanner from "../components/DataStateBanner";
 import { analyticsCards, analyticsModules, analyticsTrend } from "../data/mockData";
+import { Card, CardHeader } from "../components/ui/Card";
 
 function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState({
@@ -45,26 +46,28 @@ function AnalyticsPage() {
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Analytics & Reports</p>
-        <h1 className="mt-3 font-display text-4xl font-bold text-white">Sprint 7 performance intelligence</h1>
-        <p className="mt-3 text-slate-400">Visualize module distribution, burndown trends, and outcome quality in one analytics suite.</p>
-      </section>
+      <Card>
+        <CardHeader
+          eyebrow="Analytics & Reports"
+          title="Sprint 7 performance intelligence"
+          description="Visualize module distribution, burndown trends, and outcome quality in one analytics suite."
+        />
+      </Card>
 
       <DataStateBanner loading={analyticsState.loading} error={analyticsState.error} loadingText="Loading analytics..." />
 
       <section className="grid gap-4 xl:grid-cols-4">
         {analyticsData.cards.map((card) => (
-          <article key={card.label} className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5 shadow-glow">
+          <Card key={card.label} className="p-5">
             <h3 className="text-3xl font-bold text-white">{card.value}</h3>
             <p className="mt-2 text-sm text-slate-400">{card.label}</p>
-          </article>
+          </Card>
         ))}
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <article className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
-          <h3 className="text-2xl font-semibold text-white">Burn-down chart</h3>
+        <Card>
+          <CardHeader title="Burn-down chart" />
           <div className="mt-6 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analyticsData.trend}>
@@ -77,10 +80,10 @@ function AnalyticsPage() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </article>
+        </Card>
 
-        <article className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
-          <h3 className="text-2xl font-semibold text-white">Requirements by module</h3>
+        <Card>
+          <CardHeader title="Requirements by module" />
           <div className="mt-6 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analyticsData.distribution}>
@@ -92,7 +95,7 @@ function AnalyticsPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </article>
+        </Card>
       </section>
     </div>
   );

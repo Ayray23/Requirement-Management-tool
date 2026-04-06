@@ -1,6 +1,8 @@
 import { NavLink } from "react-router-dom";
 import { Bell, Users, BarChart3, ClipboardList, LayoutDashboard, Settings, Sparkles } from "../app/icons";
 import { userProfile } from "../data/mockData";
+import Button from "./ui/Button";
+import { Card } from "./ui/Card";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -15,7 +17,7 @@ function AppShell({ children }) {
     <div className="min-h-screen bg-remt-bg bg-remt-scene font-body text-slate-100">
       <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
         <aside className="border-r border-white/10 bg-slate-950/70 p-6 backdrop-blur-xl">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow">
+          <Card className="rounded-3xl bg-white/5 p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-remt-brand font-display text-xl font-bold text-white">
                 R
@@ -25,7 +27,7 @@ function AppShell({ children }) {
                 <p className="text-xs text-slate-400">Requirement Intelligence</p>
               </div>
             </div>
-          </div>
+          </Card>
 
           <nav className="mt-6 grid gap-2">
             {navItems.map((item) => {
@@ -49,7 +51,7 @@ function AppShell({ children }) {
             })}
           </nav>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-4">
+          <Card className="mt-8 rounded-3xl bg-white/5 p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-cyan-400 font-bold text-white">
                 {userProfile.initials}
@@ -59,11 +61,11 @@ function AppShell({ children }) {
                 <p className="text-xs text-slate-400">{userProfile.role}</p>
               </div>
             </div>
-          </div>
+          </Card>
         </aside>
 
         <section className="p-4 sm:p-6">
-          <header className="mb-5 rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow backdrop-blur-xl">
+          <Card className="mb-5 p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Smart Requirement Elicitation & Management Tool</h3>
@@ -74,22 +76,16 @@ function AppShell({ children }) {
                   Search requirements, projects, teams
                 </div>
                 <div className="flex gap-3">
-                  <button
-                    className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5 text-slate-200"
-                    type="button"
-                  >
+                  <Button type="button" variant="icon" size="icon">
                     <Bell />
-                  </button>
-                  <button
-                    className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5 text-slate-200"
-                    type="button"
-                  >
+                  </Button>
+                  <Button type="button" variant="icon" size="icon">
                     <Users />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
-          </header>
+          </Card>
           <div className="grid gap-5">{children}</div>
         </section>
       </div>

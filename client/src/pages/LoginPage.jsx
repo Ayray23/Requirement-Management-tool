@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Sparkles } from "../app/icons";
+import { signInWithEmail, signInWithGoogleProvider } from "../app/firebase";
 import Stat from "../components/Stat";
+import Button from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Field, TextInput } from "../components/ui/Field";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -22,7 +26,7 @@ function LoginPage() {
     }));
   }
 
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
 
     if (!credentials.email.includes("@")) {
@@ -42,13 +46,56 @@ function LoginPage() {
     }
 
     setLoginState({
-      status: "success",
-      message: "Signed in successfully. Redirecting to your workspace..."
+      status: "loading",
+      message: "Signing you in..."
     });
 
-    window.setTimeout(() => {
-      navigate("/dashboard");
-    }, 700);
+    try {
+      const result = await signInWithEmail(credentials.email, credentials.password);
+      setLoginState({
+        status: "success",
+        message:
+          result.mode === "firebase"
+            ? "Signed in with Firebase. Redirecting to your workspace..."
+            : "Firebase config not found, so demo sign-in was used. Redirecting to your workspace..."
+      });
+
+      window.setTimeout(() => {
+        navigate("/dashboard");
+      }, 700);
+    } catch (error) {
+      setLoginState({
+        status: "error",
+        message: error.message || "Could not sign in right now."
+      });
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setLoginState({
+      status: "loading",
+      message: "Opening Google sign-in..."
+    });
+
+    try {
+      const result = await signInWithGoogleProvider();
+      setLoginState({
+        status: "success",
+        message:
+          result.mode === "firebase"
+            ? "Google sign-in successful. Redirecting to your workspace..."
+            : "Firebase config not found, so demo Google sign-in was used. Redirecting to your workspace..."
+      });
+
+      window.setTimeout(() => {
+        navigate("/dashboard");
+      }, 700);
+    } catch (error) {
+      setLoginState({
+        status: "error",
+        message: error.message || "Google sign-in could not be completed."
+      });
+    }
   }
 
   return (
@@ -88,41 +135,24 @@ function LoginPage() {
         </section>
 
         <section className="flex items-center justify-center border-l border-white/10 bg-slate-950/50 p-6 backdrop-blur-xl sm:p-10">
-          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-slate-950/70 p-8 shadow-glow">
+          <Card className="w-full max-w-md bg-slate-950/70 p-8">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Welcome back</p>
             <h2 className="mt-3 text-3xl font-bold">Sign in to your workspace</h2>
-            <p className="mt-2 text-sm text-slate-400">Tailwind-based auth screen matching the product direction.</p>
+            <p className="mt-2 text-sm text-slate-400">React + Tailwind login flow with Firebase auth and demo fallback.</p>
 
             <form className="mt-8 grid gap-4" onSubmit={handleLogin}>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-200">Email address</span>
-                <input
-                  className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none ring-0 placeholder:text-slate-500 focus:border-fuchsia-400/40"
-                  name="email"
-                  type="email"
-                  value={credentials.email}
-                  onChange={handleChange}
-                />
-              </label>
+              <Field label="Email address">
+                <TextInput name="email" type="email" value={credentials.email} onChange={handleChange} />
+              </Field>
 
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-200">Password</span>
-                <input
-                  className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-fuchsia-400/40"
-                  name="password"
-                  type="password"
-                  value={credentials.password}
-                  onChange={handleChange}
-                />
-              </label>
+              <Field label="Password">
+                <TextInput name="password" type="password" value={credentials.password} onChange={handleChange} />
+              </Field>
 
-              <button
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 font-semibold text-white"
-                type="submit"
-              >
+              <Button className="mt-2 w-full" type="submit">
                 Enter workspace
                 <ChevronRight />
-              </button>
+              </Button>
             </form>
 
             {loginState.message ? (
@@ -130,20 +160,19 @@ function LoginPage() {
                 className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
                   loginState.status === "success"
                     ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                    : "border-red-400/20 bg-red-400/10 text-red-200"
+                    : loginState.status === "loading"
+                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
+                      : "border-red-400/20 bg-red-400/10 text-red-200"
                 }`}
               >
                 {loginState.message}
               </div>
             ) : null}
 
-            <button
-              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold text-slate-100"
-              type="button"
-            >
+            <Button className="mt-4 w-full" type="button" variant="secondary" onClick={handleGoogleSignIn}>
               Continue with Google
-            </button>
-          </div>
+            </Button>
+          </Card>
         </section>
       </div>
     </main>

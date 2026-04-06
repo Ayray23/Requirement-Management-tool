@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getRequirementsData } from "../app/api";
 import DataStateBanner from "../components/DataStateBanner";
 import { requirements } from "../data/mockData";
+import { Card, CardHeader } from "../components/ui/Card";
+import { SelectInput, TextInput } from "../components/ui/Field";
+import { Cell, EmptyRow, HeadCell, Table, TableBody, TableHead, TableRow, TableShell } from "../components/ui/Table";
 
 function RequirementsPage() {
+  const navigate = useNavigate();
   const [requirementsData, setRequirementsData] = useState(requirements);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -56,72 +61,77 @@ function RequirementsPage() {
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-[28px] border border-white/10 bg-slate-950/50 p-6 shadow-glow backdrop-blur-xl">
-        <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Requirements Repository</p>
-        <h1 className="mt-3 font-display text-4xl font-bold text-white">All requirements</h1>
-        <p className="mt-3 text-slate-400">Table-style requirement management with search, status filter, and progress visibility.</p>
-      </section>
+      <Card>
+        <CardHeader
+          eyebrow="Requirements Repository"
+          title="All requirements"
+          description="Table-style requirement management with search, status filter, and progress visibility."
+        />
+      </Card>
 
       <DataStateBanner loading={requirementsState.loading} error={requirementsState.error} loadingText="Loading requirement records..." />
 
       <section className="grid gap-4">
         <div className="flex flex-wrap gap-4">
-          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
-            <strong className="block text-3xl font-bold text-white">{summary.total}</strong>
-            <span className="text-sm text-slate-400">Total requirements</span>
-          </article>
-          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
-            <strong className="block text-3xl font-bold text-white">{summary.active}</strong>
-            <span className="text-sm text-slate-400">Active items</span>
-          </article>
-          <article className="min-w-[180px] rounded-3xl border border-white/10 bg-slate-950/50 p-5 shadow-glow">
-            <strong className="block text-3xl font-bold text-white">{summary.critical}</strong>
-            <span className="text-sm text-slate-400">Critical priority</span>
-          </article>
+          {[
+            { label: "Total requirements", value: summary.total },
+            { label: "Active items", value: summary.active },
+            { label: "Critical priority", value: summary.critical }
+          ].map((item) => (
+            <Card key={item.label} className="min-w-[180px] p-5">
+              <strong className="block text-3xl font-bold text-white">{item.value}</strong>
+              <span className="text-sm text-slate-400">{item.label}</span>
+            </Card>
+          ))}
         </div>
 
         <div className="flex flex-wrap gap-4">
-          <input
-            className="min-h-[52px] flex-1 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-fuchsia-400/40"
+          <TextInput
+            className="min-h-[52px] flex-1"
             type="text"
             placeholder="Search by title, ID, module, or owner"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
-          <select
-            className="min-h-[52px] min-w-[200px] rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-100 outline-none focus:border-fuchsia-400/40"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
+          <SelectInput className="min-h-[52px] min-w-[200px]" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             {availableStatuses.map((status) => (
               <option key={status} value={status}>
                 {status}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </div>
       </section>
 
-      <section className="overflow-x-auto rounded-[28px] border border-white/10 bg-slate-950/50 p-4 shadow-glow backdrop-blur-xl">
-        <table className="min-w-full border-collapse">
-          <thead>
-            <tr className="border-b border-white/10 text-left text-xs uppercase tracking-[0.18em] text-slate-400">
-              <th className="px-3 py-4">ID</th>
-              <th className="px-3 py-4">Title</th>
-              <th className="px-3 py-4">Module</th>
-              <th className="px-3 py-4">Priority</th>
-              <th className="px-3 py-4">Status</th>
-              <th className="px-3 py-4">Owner</th>
-              <th className="px-3 py-4">Progress</th>
-            </tr>
-          </thead>
-          <tbody>
+      <TableShell>
+        <Table>
+          <TableHead>
+            <HeadCell>ID</HeadCell>
+            <HeadCell>Title</HeadCell>
+            <HeadCell>Module</HeadCell>
+            <HeadCell>Priority</HeadCell>
+            <HeadCell>Status</HeadCell>
+            <HeadCell>Owner</HeadCell>
+            <HeadCell>Progress</HeadCell>
+          </TableHead>
+          <TableBody>
             {filteredRequirements.map((requirement) => (
-              <tr key={requirement.id} className="border-b border-white/5 text-sm text-slate-200">
-                <td className="px-3 py-4 text-slate-400">{requirement.id}</td>
-                <td className="px-3 py-4">{requirement.title}</td>
-                <td className="px-3 py-4">{requirement.module}</td>
-                <td className="px-3 py-4">
+              <TableRow
+                key={requirement.id}
+                className="cursor-pointer transition hover:bg-white/5"
+              >
+                <Cell className="text-slate-400">{requirement.id}</Cell>
+                <Cell>
+                  <button
+                    className="text-left font-medium text-white hover:text-cyan-200"
+                    onClick={() => navigate(`/requirements/${requirement.id}`)}
+                    type="button"
+                  >
+                    {requirement.title}
+                  </button>
+                </Cell>
+                <Cell>{requirement.module}</Cell>
+                <Cell>
                   <span
                     className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
                       requirement.priority === "Critical"
@@ -133,22 +143,16 @@ function RequirementsPage() {
                   >
                     {requirement.priority}
                   </span>
-                </td>
-                <td className="px-3 py-4">{requirement.status}</td>
-                <td className="px-3 py-4">{requirement.owner}</td>
-                <td className="px-3 py-4">{requirement.progress}%</td>
-              </tr>
+                </Cell>
+                <Cell>{requirement.status}</Cell>
+                <Cell>{requirement.owner}</Cell>
+                <Cell>{requirement.progress}%</Cell>
+              </TableRow>
             ))}
-            {filteredRequirements.length === 0 ? (
-              <tr>
-                <td className="px-3 py-8 text-center text-slate-400" colSpan="7">
-                  No requirements match the current search and filter.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </section>
+            {filteredRequirements.length === 0 ? <EmptyRow colSpan="7">No requirements match the current search and filter.</EmptyRow> : null}
+          </TableBody>
+        </Table>
+      </TableShell>
     </div>
   );
 }

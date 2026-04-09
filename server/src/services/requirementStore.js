@@ -258,3 +258,114 @@ export async function addRequirementComment(id, input) {
 
   return comment;
 }
+
+export async function updateRequirement(id, input) {
+  const collection = await getFirestoreCollection();
+  const now = new Date().toISOString();
+
+  if (collection) {
+    const document = await collection.doc(id).get();
+
+    if (!document.exists) {
+      return null;
+    }
+
+    const existingRequirement = document.data();
+    const updatedRequirement = {
+      ...existingRequirement,
+      title: input.title || existingRequirement.title,
+      module: input.module || existingRequirement.module,
+      priority: input.priority || existingRequirement.priority,
+      status: input.status || existingRequirement.status,
+      owner: input.owner || existingRequirement.owner,
+      sprint: input.sprint || existingRequirement.sprint,
+      progress: Number.isFinite(Number(input.progress)) ? Number(input.progress) : existingRequirement.progress,
+      description: input.description || existingRequirement.description,
+      acceptanceCriteria: Array.isArray(input.acceptanceCriteria)
+        ? input.acceptanceCriteria.filter(Boolean)
+        : existingRequirement.acceptanceCriteria ?? [],
+      dependencies: Array.isArray(input.dependencies)
+        ? input.dependencies.filter(Boolean)
+        : existingRequirement.dependencies ?? [],
+      updatedAt: now
+    };
+
+    await collection.doc(id).set(updatedRequirement, { merge: true });
+
+    return {
+      ...updatedRequirement,
+      id
+    };
+  }
+
+  const index = requirements.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  requirements[index] = {
+    ...requirements[index],
+    title: input.title || requirements[index].title,
+    module: input.module || requirements[index].module,
+    priority: input.priority || requirements[index].priority,
+    status: input.status || requirements[index].status,
+    owner: input.owner || requirements[index].owner,
+    sprint: input.sprint || requirements[index].sprint,
+    progress: Number.isFinite(Number(input.progress)) ? Number(input.progress) : requirements[index].progress,
+    description: input.description || requirements[index].description,
+    acceptanceCriteria: Array.isArray(input.acceptanceCriteria)
+      ? input.acceptanceCriteria.filter(Boolean)
+      : requirements[index].acceptanceCriteria ?? [],
+    dependencies: Array.isArray(input.dependencies)
+      ? input.dependencies.filter(Boolean)
+      : requirements[index].dependencies ?? []
+  };
+
+  return {
+    ...cloneRequirement(requirements[index]),
+    comments: requirementComments
+      .filter((comment) => comment.requirementId === id)
+      .map(cloneComment),
+    activity: requirementActivity
+      .filter((item) => item.requirementId === id)
+      .map(cloneActivity)
+  };
+}
+
+export async function deleteRequirement(id) {
+  const collection = await getFirestoreCollection();
+
+  if (collection) {
+    const document = await collection.doc(id).get();
+
+    if (!document.exists) {
+      return false;
+    }
+
+    await collection.doc(id).delete();
+    return true;
+  }
+
+  const index = requirements.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return false;
+  }
+
+  requirements.splice(index, 1);
+
+  for (let commentIndex = requirementComments.length - 1; commentIndex >= 0; commentIndex -= 1) {
+    if (requirementComments[commentIndex].requirementId === id) {
+      requirementComments.splice(commentIndex, 1);
+    }
+  }
+
+  for (let activityIndex = requirementActivity.length - 1; activityIndex >= 0; activityIndex -= 1) {
+    if (requirementActivity[activityIndex].requirementId === id) {
+      requirementActivity.splice(activityIndex, 1);
+    }
+  }
+
+  return true;
+}

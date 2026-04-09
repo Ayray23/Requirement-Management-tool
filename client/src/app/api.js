@@ -53,3 +53,18 @@ export async function createRequirementComment(requirementId, data) {
 
   return payload.data;
 }
+
+export async function updateRequirement(requirementId, data) {
+  const payload = await request(`/requirements/${requirementId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data)
+  });
+
+  return payload.data;
+}
+
+export async function deleteRequirement(requirementId) {
+  await request(`/requirements/${requirementId}`, {
+    method: "DELETE"
+  });
+}

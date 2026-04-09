@@ -1,8 +1,10 @@
 import {
   addRequirementComment,
   createRequirement as createRequirementRecord,
+  deleteRequirement as deleteRequirementRecord,
   getRequirementById as getRequirementRecordById,
-  listRequirements
+  listRequirements,
+  updateRequirement as updateRequirementRecord
 } from "../services/requirementStore.js";
 
 export async function getRequirements(req, res, next) {
@@ -74,6 +76,52 @@ export async function createRequirement(req, res, next) {
       ok: true,
       message: "Requirement saved successfully.",
       data: newRequirement
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateRequirement(req, res, next) {
+  try {
+    const { id } = req.params;
+    const payload = req.body ?? {};
+    const updatedRequirement = await updateRequirementRecord(id, payload);
+
+    if (!updatedRequirement) {
+      res.status(404).json({
+        ok: false,
+        message: "Requirement not found"
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      message: "Requirement updated successfully.",
+      data: updatedRequirement
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteRequirement(req, res, next) {
+  try {
+    const { id } = req.params;
+    const deleted = await deleteRequirementRecord(id);
+
+    if (!deleted) {
+      res.status(404).json({
+        ok: false,
+        message: "Requirement not found"
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      message: "Requirement deleted successfully."
     });
   } catch (error) {
     next(error);

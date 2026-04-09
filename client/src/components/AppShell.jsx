@@ -1,6 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../app/AuthContext";
 import { Bell, Users, BarChart3, ClipboardList, LayoutDashboard, Settings, Sparkles } from "../app/icons";
-import { userProfile } from "../data/mockData";
 import Button from "./ui/Button";
 import { Card } from "./ui/Card";
 
@@ -13,6 +13,10 @@ const navItems = [
 ];
 
 function AppShell({ children }) {
+  const navigate = useNavigate();
+  const { session, signOut } = useAuth();
+  const profile = session.user;
+
   return (
     <div className="min-h-screen bg-remt-bg bg-remt-scene font-body text-slate-100">
       <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
@@ -54,11 +58,11 @@ function AppShell({ children }) {
           <Card className="mt-8 rounded-3xl bg-white/5 p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-cyan-400 font-bold text-white">
-                {userProfile.initials}
+                {profile?.initials ?? "RM"}
               </div>
               <div>
-                <strong className="block text-sm">{userProfile.name}</strong>
-                <p className="text-xs text-slate-400">{userProfile.role}</p>
+                <strong className="block text-sm">{profile?.name ?? "Workspace User"}</strong>
+                <p className="text-xs text-slate-400">{profile?.role ?? "Guest"}</p>
               </div>
             </div>
           </Card>
@@ -81,6 +85,16 @@ function AppShell({ children }) {
                   </Button>
                   <Button type="button" variant="icon" size="icon">
                     <Users />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      signOut();
+                      navigate("/");
+                    }}
+                  >
+                    Sign out
                   </Button>
                 </div>
               </div>

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../app/AuthContext";
 import { ChevronRight, Sparkles } from "../app/icons";
 import { signInWithEmail, signInWithGoogleProvider } from "../app/firebase";
 import Stat from "../components/Stat";
@@ -8,7 +9,9 @@ import { Card } from "../components/ui/Card";
 import { Field, TextInput } from "../components/ui/Field";
 
 function LoginPage() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const { session, signIn } = useAuth();
   const [credentials, setCredentials] = useState({
     email: "alex.morgan@techcorp.io",
     password: "password123"
@@ -25,6 +28,14 @@ function LoginPage() {
       [name]: value
     }));
   }
+
+  const redirectPath = location.state?.from || "/dashboard";
+
+  useEffect(() => {
+    if (session.isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate, session.isAuthenticated]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -52,6 +63,7 @@ function LoginPage() {
 
     try {
       const result = await signInWithEmail(credentials.email, credentials.password);
+      signIn(credentials.email);
       setLoginState({
         status: "success",
         message:
@@ -61,7 +73,7 @@ function LoginPage() {
       });
 
       window.setTimeout(() => {
-        navigate("/dashboard");
+        navigate(redirectPath);
       }, 700);
     } catch (error) {
       setLoginState({
@@ -79,6 +91,7 @@ function LoginPage() {
 
     try {
       const result = await signInWithGoogleProvider();
+      signIn(credentials.email);
       setLoginState({
         status: "success",
         message:
@@ -88,7 +101,7 @@ function LoginPage() {
       });
 
       window.setTimeout(() => {
-        navigate("/dashboard");
+        navigate(redirectPath);
       }, 700);
     } catch (error) {
       setLoginState({
@@ -139,6 +152,9 @@ function LoginPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Welcome back</p>
             <h2 className="mt-3 text-3xl font-bold">Sign in to your workspace</h2>
             <p className="mt-2 text-sm text-slate-400">React + Tailwind login flow with Firebase auth and demo fallback.</p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+              Demo roles: Admin `alex.morgan@techcorp.io`, Analyst `sarah.kim@techcorp.io`, Stakeholder `maria.liu@techcorp.io`, Developer `james.torres@techcorp.io`
+            </div>
 
             <form className="mt-8 grid gap-4" onSubmit={handleLogin}>
               <Field label="Email address">

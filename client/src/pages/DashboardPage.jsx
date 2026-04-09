@@ -9,9 +9,17 @@ import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 
 function DashboardPage() {
   const [dashboardData, setDashboardData] = useState({
+    summary: {
+      productName: "REMT",
+      activeSprint: "Sprint 7",
+      completionRate: 0,
+      ambiguityAlerts: 0,
+      stakeholderSatisfaction: 0
+    },
     kpis,
     timeline,
-    insights
+    insights,
+    featuredRequirements: []
   });
   const [dashboardState, setDashboardState] = useState({
     loading: true,
@@ -25,9 +33,17 @@ function DashboardPage() {
       .then((data) => {
         if (active) {
           setDashboardData({
+            summary: data.summary ?? {
+              productName: "REMT",
+              activeSprint: "Sprint 7",
+              completionRate: 0,
+              ambiguityAlerts: 0,
+              stakeholderSatisfaction: 0
+            },
             kpis: data.kpis ?? kpis,
             timeline: data.timeline ?? timeline,
-            insights: data.insights ?? insights
+            insights: data.insights ?? insights,
+            featuredRequirements: data.featuredRequirements ?? []
           });
           setDashboardState({ loading: false, error: "" });
         }
@@ -81,6 +97,19 @@ function DashboardPage() {
         ))}
       </section>
 
+      <section className="grid gap-4 md:grid-cols-3">
+        {[
+          { label: "Active sprint", value: dashboardData.summary.activeSprint },
+          { label: "Completion health", value: `${dashboardData.summary.completionRate}%` },
+          { label: "Stakeholder confidence", value: `${dashboardData.summary.stakeholderSatisfaction}%` }
+        ].map((item) => (
+          <Card key={item.label} className="p-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+            <p className="mt-3 text-2xl font-bold text-white">{item.value}</p>
+          </Card>
+        ))}
+      </section>
+
       <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader eyebrow="Live Activity" title="Sprint updates" />
@@ -108,6 +137,34 @@ function DashboardPage() {
           </div>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader eyebrow="Priority Focus" title="Requirements that need attention first" />
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
+          {dashboardData.featuredRequirements.length > 0 ? (
+            dashboardData.featuredRequirements.map((requirement) => (
+              <InfoCard key={requirement.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-white">{requirement.title}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400">{requirement.id} - {requirement.module}</p>
+                  </div>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-200">{requirement.priority}</span>
+                </div>
+                <p className="mt-3 text-sm text-slate-300">{requirement.description}</p>
+                <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
+                  <span>{requirement.status}</span>
+                  <span>{requirement.progress}% done</span>
+                </div>
+              </InfoCard>
+            ))
+          ) : (
+            <InfoCard>
+              <p className="text-sm text-slate-300">Requirements will appear here once the project has active records.</p>
+            </InfoCard>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

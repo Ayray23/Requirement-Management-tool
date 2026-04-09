@@ -1,8 +1,14 @@
-import { analytics } from "../data/mockData.js";
+import { buildAnalyticsMetrics } from "../services/metricsService.js";
 
-export function getAnalytics(req, res) {
-  res.json({
-    ok: true,
-    data: analytics
-  });
+export async function getAnalytics(req, res, next) {
+  try {
+    const metrics = await buildAnalyticsMetrics();
+
+    res.json({
+      ok: true,
+      data: metrics
+    });
+  } catch (error) {
+    next(error);
+  }
 }

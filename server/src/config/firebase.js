@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 
 let firebaseApp = null;
+let firestoreDb = null;
 
 export function initializeFirebase() {
   if (firebaseApp) {
@@ -22,4 +23,18 @@ export function initializeFirebase() {
   });
 
   return firebaseApp;
+}
+
+export function getFirestoreDb() {
+  const app = initializeFirebase();
+
+  if (!app) {
+    return null;
+  }
+
+  if (!firestoreDb) {
+    firestoreDb = admin.firestore(app);
+  }
+
+  return firestoreDb;
 }

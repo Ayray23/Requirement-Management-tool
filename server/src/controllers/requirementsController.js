@@ -1,91 +1,81 @@
-import { requirementActivity, requirementComments, requirements } from "../data/mockData.js";
+import {
+  addRequirementComment,
+  createRequirement as createRequirementRecord,
+  getRequirementById as getRequirementRecordById,
+  listRequirements
+} from "../services/requirementStore.js";
 
-export function getRequirements(req, res) {
-  res.json({
-    ok: true,
-    count: requirements.length,
-    data: requirements
-  });
+export async function getRequirements(req, res, next) {
+  try {
+    const requirements = await listRequirements();
+
+    res.json({
+      ok: true,
+      count: requirements.length,
+      data: requirements
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function getRequirementById(req, res) {
-  const { id } = req.params;
-  const requirement = requirements.find((item) => item.id === id);
+export async function getRequirementById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const requirement = await getRequirementRecordById(id);
 
-  if (!requirement) {
-    res.status(404).json({
-      ok: false,
-      message: "Requirement not found"
-    });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    data: {
-      ...requirement,
-      activity: requirementActivity.filter((item) => item.requirementId === requirement.id),
-      comments: requirementComments.filter((item) => item.requirementId === requirement.id)
+    if (!requirement) {
+      res.status(404).json({
+        ok: false,
+        message: "Requirement not found"
+      });
+      return;
     }
-  });
-}
 
-export function createRequirementComment(req, res) {
-  const { id } = req.params;
-  const requirement = requirements.find((item) => item.id === id);
-
-  if (!requirement) {
-    res.status(404).json({
-      ok: false,
-      message: "Requirement not found"
+    res.json({
+      ok: true,
+      data: requirement
     });
-    return;
+  } catch (error) {
+    next(error);
   }
-
-  const payload = req.body ?? {};
-  const comment = {
-    id: `c${requirementComments.length + 1}`,
-    requirementId: id,
-    author: payload.author || "Anonymous User",
-    role: payload.role || "Contributor",
-    message: payload.message || "",
-    time: "Just now"
-  };
-
-  requirementComments.unshift(comment);
-  requirementActivity.unshift({
-    id: `a${requirementActivity.length + 1}`,
-    requirementId: id,
-    text: `${comment.author} added a new discussion comment.`,
-    time: "Just now"
-  });
-
-  res.status(201).json({
-    ok: true,
-    message: "Comment added successfully.",
-    data: comment
-  });
 }
 
-export function createRequirement(req, res) {
-  const payload = req.body ?? {};
-  const newRequirement = {
-    id: `REQ-${String(requirements.length + 1).padStart(3, "0")}`,
-    title: payload.title || "Untitled Requirement",
-    module: payload.module || "General",
-    priority: payload.priority || "Medium",
-    status: "Draft",
-    owner: payload.owner || "Unassigned",
-    sprint: payload.sprint || "Backlog",
-    progress: 0,
-    description: payload.description || ""
-  };
+export async function createRequirementComment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const payload = req.body ?? {};
+    const comment = await addRequirementComment(id, payload);
 
-  requirements.push(newRequirement);
+    if (!comment) {
+      res.status(404).json({
+        ok: false,
+        message: "Requirement not found"
+      });
+      return;
+    }
 
-  res.status(201).json({
-    ok: true,
-    message: "Requirement created in demo mode.",
-    data: newRequirement
-  });
+    res.status(201).json({
+      ok: true,
+      message: "Comment added successfully.",
+      data: comment
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createRequirement(req, res, next) {
+  try {
+    const payload = req.body ?? {};
+    const newRequirement = await createRequirementRecord(payload);
+
+    res.status(201).json({
+      ok: true,
+      message: "Requirement saved successfully.",
+      data: newRequirement
+    });
+  } catch (error) {
+    next(error);
+  }
 }

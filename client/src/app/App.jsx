@@ -3,6 +3,7 @@ import { AuthProvider } from "./AuthContext";
 import AppShell from "../components/AppShell";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AnalyticsPage from "../pages/AnalyticsPage";
+import CollaborationPage from "../pages/CollaborationPage";
 import DashboardPage from "../pages/DashboardPage";
 import LoginPage from "../pages/LoginPage";
 import RequirementDetailPage from "../pages/RequirementDetailPage";
@@ -25,6 +26,7 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/requirements" element={<RequirementsPage />} />
                   <Route path="/requirements/:requirementId" element={<RequirementDetailPage />} />
+                  <Route path="/collaboration" element={<CollaborationPage />} />
                   <Route
                     path="/workbench"
                     element={

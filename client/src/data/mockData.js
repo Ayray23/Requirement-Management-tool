@@ -170,21 +170,40 @@ export const analyticsModules = [
 
 export const collaborationThreads = [
   {
+    id: "thread-001",
     title: "OAuth scope alignment for REQ-001",
     tag: "REQ-001",
     participants: 4,
+    owner: "Sarah Kim",
+    status: "Needs Review",
+    updatedAt: "10 minutes ago",
     excerpt: "This is blocking security review. We need a final provider list before implementation continues."
   },
   {
+    id: "thread-002",
     title: "Notification delivery strategy",
     tag: "REQ-002",
     participants: 3,
+    owner: "Maria Liu",
+    status: "In Discussion",
+    updatedAt: "35 minutes ago",
     excerpt: "Team is comparing Socket.IO against Firebase messaging for live updates."
   },
   {
+    id: "thread-003",
     title: "Conflict detection model choice",
     tag: "REQ-005",
     participants: 5,
+    owner: "Alex Morgan",
+    status: "Escalated",
+    updatedAt: "Today",
     excerpt: "The AI assistant recommends a rules-first approach before adding generative summarization."
   }
+];
+
+export const collaborationMembers = [
+  { name: "Alex Morgan", role: "Admin", focus: "Governance and delivery approvals" },
+  { name: "Sarah Kim", role: "Analyst", focus: "Flows, UX, and requirement refinement" },
+  { name: "Maria Liu", role: "Stakeholder", focus: "Business goals and acceptance criteria" },
+  { name: "James Torres", role: "Developer", focus: "Architecture, security, and implementation" }
 ];

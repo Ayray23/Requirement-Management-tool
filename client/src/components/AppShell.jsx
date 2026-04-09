@@ -7,6 +7,7 @@ import { Card } from "./ui/Card";
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/requirements", label: "Requirements", icon: ClipboardList },
+  { to: "/collaboration", label: "Collaboration", icon: Users },
   { to: "/workbench", label: "AI Workbench", icon: Sparkles },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings }

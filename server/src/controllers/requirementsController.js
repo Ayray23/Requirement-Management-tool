@@ -1,4 +1,4 @@
-import { requirementActivity, requirements } from "../data/mockData.js";
+import { requirementActivity, requirementComments, requirements } from "../data/mockData.js";
 
 export function getRequirements(req, res) {
   res.json({
@@ -24,8 +24,46 @@ export function getRequirementById(req, res) {
     ok: true,
     data: {
       ...requirement,
-      activity: requirementActivity.filter((item) => item.requirementId === requirement.id)
+      activity: requirementActivity.filter((item) => item.requirementId === requirement.id),
+      comments: requirementComments.filter((item) => item.requirementId === requirement.id)
     }
+  });
+}
+
+export function createRequirementComment(req, res) {
+  const { id } = req.params;
+  const requirement = requirements.find((item) => item.id === id);
+
+  if (!requirement) {
+    res.status(404).json({
+      ok: false,
+      message: "Requirement not found"
+    });
+    return;
+  }
+
+  const payload = req.body ?? {};
+  const comment = {
+    id: `c${requirementComments.length + 1}`,
+    requirementId: id,
+    author: payload.author || "Anonymous User",
+    role: payload.role || "Contributor",
+    message: payload.message || "",
+    time: "Just now"
+  };
+
+  requirementComments.unshift(comment);
+  requirementActivity.unshift({
+    id: `a${requirementActivity.length + 1}`,
+    requirementId: id,
+    text: `${comment.author} added a new discussion comment.`,
+    time: "Just now"
+  });
+
+  res.status(201).json({
+    ok: true,
+    message: "Comment added successfully.",
+    data: comment
   });
 }
 

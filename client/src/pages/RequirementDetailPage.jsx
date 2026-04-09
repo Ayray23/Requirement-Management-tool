@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
-import { getRequirementById } from "../app/api";
-import { requirementActivity, requirements } from "../data/mockData";
+import { createRequirementComment, getRequirementById } from "../app/api";
+import { requirementActivity, requirements, userProfile } from "../data/mockData";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
+import { Field, TextArea } from "../components/ui/Field";
 
 function RequirementDetailPage() {
   const { requirementId } = useParams();
@@ -12,6 +13,12 @@ function RequirementDetailPage() {
   const [activity, setActivity] = useState(
     fallbackRequirement ? requirementActivity.filter((item) => item.requirementId === fallbackRequirement.id) : []
   );
+  const [comments, setComments] = useState(fallbackRequirement?.comments ?? []);
+  const [commentMessage, setCommentMessage] = useState("");
+  const [commentState, setCommentState] = useState({
+    status: "idle",
+    message: ""
+  });
   const [detailState, setDetailState] = useState({
     loading: true,
     error: ""
@@ -33,6 +40,7 @@ function RequirementDetailPage() {
         if (active) {
           setRequirement(data);
           setActivity(data.activity ?? []);
+          setComments(data.comments ?? []);
           setDetailState({
             loading: false,
             error: ""
@@ -52,6 +60,52 @@ function RequirementDetailPage() {
       active = false;
     };
   }, [fallbackRequirement, requirementId]);
+
+  async function handleCommentSubmit(event) {
+    event.preventDefault();
+
+    if (!requirementId || !commentMessage.trim()) {
+      setCommentState({
+        status: "error",
+        message: "Write a comment before posting."
+      });
+      return;
+    }
+
+    setCommentState({
+      status: "loading",
+      message: "Posting comment..."
+    });
+
+    try {
+      const comment = await createRequirementComment(requirementId, {
+        author: userProfile.name,
+        role: userProfile.role,
+        message: commentMessage.trim()
+      });
+
+      setComments((current) => [comment, ...current]);
+      setActivity((current) => [
+        {
+          id: `local-${Date.now()}`,
+          requirementId,
+          text: `${userProfile.name} added a new discussion comment.`,
+          time: "Just now"
+        },
+        ...current
+      ]);
+      setCommentMessage("");
+      setCommentState({
+        status: "success",
+        message: "Comment posted."
+      });
+    } catch (error) {
+      setCommentState({
+        status: "error",
+        message: error.message || "Could not post the comment right now."
+      });
+    }
+  }
 
   if (!requirement) {
     return (
@@ -163,6 +217,62 @@ function RequirementDetailPage() {
             ) : (
               <InfoCard>
                 <p className="text-sm text-slate-300">No recent activity has been recorded for this requirement yet.</p>
+              </InfoCard>
+            )}
+          </div>
+        </Card>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        <Card>
+          <CardHeader eyebrow="Discussion" title="Add a comment" description="Capture team feedback, blockers, and decisions for this requirement." />
+          <form className="mt-6 grid gap-4" onSubmit={handleCommentSubmit}>
+            <Field label="Comment">
+              <TextArea
+                className="min-h-[160px]"
+                value={commentMessage}
+                onChange={(event) => setCommentMessage(event.target.value)}
+                placeholder="Share an update, ask a question, or flag a blocker..."
+              />
+            </Field>
+            <div className="flex justify-end">
+              <Button type="submit">{commentState.status === "loading" ? "Posting..." : "Post comment"}</Button>
+            </div>
+            {commentState.message ? (
+              <div
+                className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                  commentState.status === "success"
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                    : commentState.status === "loading"
+                      ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
+                      : "border-red-400/20 bg-red-400/10 text-red-200"
+                }`}
+              >
+                {commentState.message}
+              </div>
+            ) : null}
+          </form>
+        </Card>
+
+        <Card>
+          <CardHeader eyebrow="Thread" title="Requirement discussion" description={`${comments.length} comment${comments.length === 1 ? "" : "s"} in this conversation`} />
+          <div className="mt-6 grid gap-3">
+            {comments.length > 0 ? (
+              comments.map((comment) => (
+                <InfoCard key={comment.id}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-white">{comment.author}</p>
+                      <p className="text-xs text-slate-400">{comment.role}</p>
+                    </div>
+                    <span className="text-xs text-slate-400">{comment.time}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-slate-200">{comment.message}</p>
+                </InfoCard>
+              ))
+            ) : (
+              <InfoCard>
+                <p className="text-sm text-slate-300">No comments yet. Start the discussion for this requirement.</p>
               </InfoCard>
             )}
           </div>

@@ -44,3 +44,12 @@ export async function createRequirement(data) {
 
   return payload.data;
 }
+
+export async function createRequirementComment(requirementId, data) {
+  const payload = await request(`/requirements/${requirementId}/comments`, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+
+  return payload.data;
+}

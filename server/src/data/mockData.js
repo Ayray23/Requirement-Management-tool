@@ -131,6 +131,33 @@ export const requirementActivity = [
   { id: "a4", requirementId: "REQ-005", text: "Conflict detection logic blocked pending model decision.", time: "3 days ago" }
 ];
 
+export const requirementComments = [
+  {
+    id: "c1",
+    requirementId: "REQ-001",
+    author: "Sarah Kim",
+    role: "Frontend Engineer",
+    message: "We should lock the provider list this week so auth UI states stay stable before implementation begins.",
+    time: "1 hour ago"
+  },
+  {
+    id: "c2",
+    requirementId: "REQ-001",
+    author: "James Torres",
+    role: "Security Lead",
+    message: "Agreed. PKCE handling also needs to be called out explicitly in the acceptance criteria for review.",
+    time: "45 minutes ago"
+  },
+  {
+    id: "c3",
+    requirementId: "REQ-002",
+    author: "Maria Liu",
+    role: "Product Analyst",
+    message: "Can we show notification preferences in settings before we finalize delivery channels?",
+    time: "Today"
+  }
+];
+
 export const timeline = [
   "REQ-042 marked as complete by Maria Liu",
   "New stakeholder comment added to REQ-039",

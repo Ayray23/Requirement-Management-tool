@@ -7,6 +7,7 @@ import { initializeFirebase } from "./config/firebase.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 import requirementsRoutes from "./routes/requirementsRoutes.js";
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/requirements", requirementsRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.use(errorHandler);
 

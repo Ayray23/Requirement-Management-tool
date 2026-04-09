@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Sparkles } from "../app/icons";
-import { getDashboardData } from "../app/api";
+import { downloadProjectSummaryReport, getDashboardData } from "../app/api";
 import DataStateBanner from "../components/DataStateBanner";
 import { insights, kpis, timeline } from "../data/mockData";
 import Button from "../components/ui/Button";
@@ -24,6 +24,10 @@ function DashboardPage() {
   const [dashboardState, setDashboardState] = useState({
     loading: true,
     error: ""
+  });
+  const [reportState, setReportState] = useState({
+    status: "idle",
+    message: ""
   });
 
   useEffect(() => {
@@ -62,6 +66,26 @@ function DashboardPage() {
     };
   }, []);
 
+  async function handleExportReport() {
+    setReportState({
+      status: "loading",
+      message: "Preparing project report..."
+    });
+
+    try {
+      await downloadProjectSummaryReport();
+      setReportState({
+        status: "success",
+        message: "Project summary report downloaded."
+      });
+    } catch (error) {
+      setReportState({
+        status: "error",
+        message: error.message || "Could not export the project report right now."
+      });
+    }
+  }
+
   return (
     <div className="grid gap-5">
       <Card>
@@ -71,7 +95,7 @@ function DashboardPage() {
           description="The dashboard combines sprint health, requirement throughput, and AI-assisted delivery insights in one view."
           actions={
             <>
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="secondary" onClick={handleExportReport}>
                 Export report
               </Button>
               <Button as={NavLink} to="/workbench">
@@ -83,6 +107,19 @@ function DashboardPage() {
       </Card>
 
       <DataStateBanner loading={dashboardState.loading} error={dashboardState.error} loadingText="Loading dashboard insights..." />
+      {reportState.message ? (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            reportState.status === "success"
+              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+              : reportState.status === "loading"
+                ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-100"
+                : "border-red-400/20 bg-red-400/10 text-red-200"
+          }`}
+        >
+          {reportState.message}
+        </div>
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-4">
         {dashboardData.kpis.map((item) => (

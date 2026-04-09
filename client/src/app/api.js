@@ -68,3 +68,23 @@ export async function deleteRequirement(requirementId) {
     method: "DELETE"
   });
 }
+
+export async function downloadProjectSummaryReport() {
+  const response = await fetch(`${API_URL}/reports/summary`);
+
+  if (!response.ok) {
+    throw new Error("Could not generate the project report.");
+  }
+
+  const reportContent = await response.text();
+  const blob = new Blob([reportContent], { type: "text/markdown;charset=utf-8" });
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = downloadUrl;
+  anchor.download = "remt-project-summary.md";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}

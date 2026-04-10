@@ -1,9 +1,40 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { collaborationMembers, collaborationThreads, requirementActivity } from "../data/mockData";
+import { getCollaborationMetrics } from "../app/firestoreService";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 
 function CollaborationPage() {
+  const [collaborationData, setCollaborationData] = useState({
+    threads: [],
+    members: [],
+    activity: []
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    getCollaborationMetrics()
+      .then((data) => {
+        if (active) {
+          setCollaborationData(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCollaborationData({
+            threads: [],
+            members: [],
+            activity: []
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="grid gap-5">
       <Card>
@@ -21,9 +52,9 @@ function CollaborationPage() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "Open threads", value: collaborationThreads.length },
-          { label: "Active teammates", value: collaborationMembers.length },
-          { label: "Recent updates", value: requirementActivity.length }
+          { label: "Open threads", value: collaborationData.threads.length },
+          { label: "Active teammates", value: collaborationData.members.length },
+          { label: "Recent updates", value: collaborationData.activity.length }
         ].map((item) => (
           <Card key={item.label} className="p-5">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
@@ -36,7 +67,7 @@ function CollaborationPage() {
         <Card>
           <CardHeader eyebrow="Thread Board" title="Current requirement discussions" />
           <div className="mt-6 grid gap-4">
-            {collaborationThreads.map((thread) => (
+            {collaborationData.threads.map((thread) => (
               <InfoCard key={thread.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -66,7 +97,7 @@ function CollaborationPage() {
           <Card>
             <CardHeader eyebrow="Team Board" title="Project collaborators" />
             <div className="mt-6 grid gap-3">
-              {collaborationMembers.map((member) => (
+              {collaborationData.members.map((member) => (
                 <InfoCard key={member.name}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -83,7 +114,7 @@ function CollaborationPage() {
           <Card>
             <CardHeader eyebrow="Activity Feed" title="Latest collaboration activity" />
             <div className="mt-6 grid gap-3">
-              {requirementActivity.map((item) => (
+              {collaborationData.activity.map((item) => (
                 <InfoCard key={item.id}>
                   <p className="text-sm leading-7 text-slate-200">{item.text}</p>
                   <div className="mt-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-slate-400">

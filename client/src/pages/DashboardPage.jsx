@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Sparkles } from "../app/icons";
-import { downloadProjectSummaryReport, getDashboardData } from "../app/api";
+import { downloadProjectSummaryReport } from "../app/api";
+import { getDashboardMetrics } from "../app/firestoreService";
 import DataStateBanner from "../components/DataStateBanner";
-import { insights, kpis, timeline } from "../data/mockData";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 
@@ -16,9 +16,9 @@ function DashboardPage() {
       ambiguityAlerts: 0,
       stakeholderSatisfaction: 0
     },
-    kpis,
-    timeline,
-    insights,
+    kpis: [],
+    timeline: [],
+    insights: [],
     featuredRequirements: []
   });
   const [dashboardState, setDashboardState] = useState({
@@ -33,7 +33,7 @@ function DashboardPage() {
   useEffect(() => {
     let active = true;
 
-    getDashboardData()
+    getDashboardMetrics()
       .then((data) => {
         if (active) {
           setDashboardData({
@@ -44,9 +44,9 @@ function DashboardPage() {
               ambiguityAlerts: 0,
               stakeholderSatisfaction: 0
             },
-            kpis: data.kpis ?? kpis,
-            timeline: data.timeline ?? timeline,
-            insights: data.insights ?? insights,
+            kpis: data.kpis ?? [],
+            timeline: data.timeline ?? [],
+            insights: data.insights ?? [],
             featuredRequirements: data.featuredRequirements ?? []
           });
           setDashboardState({ loading: false, error: "" });
@@ -56,7 +56,7 @@ function DashboardPage() {
         if (active) {
           setDashboardState({
             loading: false,
-            error: "Live dashboard data is unavailable right now, so the built-in project data is being shown."
+            error: "Could not load dashboard data from Firebase right now."
           });
         }
       });

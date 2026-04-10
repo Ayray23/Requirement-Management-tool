@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getRequirementsData } from "../app/api";
+import { listRequirements } from "../app/firestoreService";
 import DataStateBanner from "../components/DataStateBanner";
-import { requirements } from "../data/mockData";
 import { Card, CardHeader } from "../components/ui/Card";
 import { SelectInput, TextInput } from "../components/ui/Field";
 import { Cell, EmptyRow, HeadCell, Table, TableBody, TableHead, TableRow, TableShell } from "../components/ui/Table";
 
 function RequirementsPage() {
   const navigate = useNavigate();
-  const [requirementsData, setRequirementsData] = useState(requirements);
+  const [requirementsData, setRequirementsData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [requirementsState, setRequirementsState] = useState({
@@ -20,7 +19,7 @@ function RequirementsPage() {
   useEffect(() => {
     let active = true;
 
-    getRequirementsData()
+    listRequirements()
       .then((data) => {
         if (active && Array.isArray(data)) {
           setRequirementsData(data);
@@ -31,7 +30,7 @@ function RequirementsPage() {
         if (active) {
           setRequirementsState({
             loading: false,
-            error: "Could not reach the API, so the seeded requirement list is being shown."
+            error: "Could not load requirements from Firebase right now."
           });
         }
       });

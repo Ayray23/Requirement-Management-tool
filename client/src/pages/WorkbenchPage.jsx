@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "../app/AuthContext";
 import { Sparkles } from "../app/icons";
-import { createRequirement } from "../app/api";
-import { collaborationThreads, userProfile } from "../data/mockData";
+import { createRequirementRecord, getCollaborationMetrics } from "../app/firestoreService";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 import { Field, TextArea, TextInput } from "../components/ui/Field";
 
 function WorkbenchPage() {
+  const { session } = useAuth();
   const initialForm = {
     title: "User Authentication System with OAuth 2.0 Integration",
     priority: "Critical",
@@ -20,6 +21,13 @@ function WorkbenchPage() {
     status: "idle",
     message: ""
   });
+  const [threadData, setThreadData] = useState([]);
+
+  useEffect(() => {
+    getCollaborationMetrics()
+      .then((data) => setThreadData(data.threads.slice(0, 3)))
+      .catch(() => setThreadData([]));
+  }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -34,9 +42,9 @@ function WorkbenchPage() {
     setSubmitState({ status: "loading", message: "Creating requirement..." });
 
     try {
-      const createdRequirement = await createRequirement({
+      const createdRequirement = await createRequirementRecord({
         ...formData,
-        owner: userProfile.name
+        owner: session.user?.name || "Workspace User"
       });
 
       setSubmitState({
@@ -108,7 +116,7 @@ function WorkbenchPage() {
         </InfoCard>
 
         <div className="mt-4 grid gap-3">
-          {collaborationThreads.map((thread) => (
+          {threadData.map((thread) => (
             <InfoCard key={thread.title}>
               <small className="text-xs uppercase tracking-[0.18em] text-slate-400">{thread.tag}</small>
               <h4 className="mt-2 text-lg font-semibold text-white">{thread.title}</h4>

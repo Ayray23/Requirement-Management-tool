@@ -13,13 +13,13 @@ function SettingsPage() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Field label="Full name">
-            <TextInput defaultValue={profile?.name || "Jordan Lee"} />
+            <TextInput defaultValue={profile?.name || ""} />
           </Field>
           <Field label="Role">
-            <TextInput defaultValue={profile?.role || "Admin"} />
+            <TextInput defaultValue={profile?.role || ""} />
           </Field>
           <Field className="md:col-span-2" label="Email">
-            <TextInput defaultValue={profile?.email || "jordan.lee@techcorp.io"} />
+            <TextInput defaultValue={profile?.email || ""} />
           </Field>
           <Field className="md:col-span-2" label="Bio">
             <TextArea

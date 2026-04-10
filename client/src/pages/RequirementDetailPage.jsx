@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
-import { createRequirementComment, deleteRequirement, getRequirementById, updateRequirement } from "../app/api";
-import { requirementActivity, requirements, userProfile } from "../data/mockData";
+import { useAuth } from "../app/AuthContext";
+import {
+  createRequirementCommentRecord,
+  deleteRequirementRecord,
+  getRequirementById,
+  updateRequirementRecord
+} from "../app/firestoreService";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 import { Field, SelectInput, TextArea, TextInput } from "../components/ui/Field";
@@ -23,20 +28,18 @@ function buildFormState(source) {
 
 function RequirementDetailPage() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const { requirementId } = useParams();
-  const fallbackRequirement = requirements.find((item) => item.id === requirementId);
-  const [requirement, setRequirement] = useState(fallbackRequirement ?? null);
-  const [activity, setActivity] = useState(
-    fallbackRequirement ? requirementActivity.filter((item) => item.requirementId === fallbackRequirement.id) : []
-  );
-  const [comments, setComments] = useState(fallbackRequirement?.comments ?? []);
+  const [requirement, setRequirement] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [comments, setComments] = useState([]);
   const [commentMessage, setCommentMessage] = useState("");
   const [commentState, setCommentState] = useState({
     status: "idle",
     message: ""
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState(buildFormState(fallbackRequirement));
+  const [editForm, setEditForm] = useState(buildFormState(null));
   const [editState, setEditState] = useState({
     status: "idle",
     message: ""
@@ -78,7 +81,7 @@ function RequirementDetailPage() {
         if (active) {
           setDetailState({
             loading: false,
-            error: fallbackRequirement ? "Live detail data is unavailable right now, so the built-in project record is being shown." : "Requirement not found."
+            error: "Requirement not found."
           });
         }
       });
@@ -86,7 +89,7 @@ function RequirementDetailPage() {
     return () => {
       active = false;
     };
-  }, [fallbackRequirement, requirementId]);
+  }, [requirementId]);
 
   function handleEditFieldChange(field, value) {
     setEditForm((current) => ({
@@ -108,7 +111,7 @@ function RequirementDetailPage() {
     });
 
     try {
-      const updatedRequirement = await updateRequirement(requirementId, {
+      const updatedRequirement = await updateRequirementRecord(requirementId, {
         ...editForm,
         progress: Number(editForm.progress),
         acceptanceCriteria: editForm.acceptanceCriteria
@@ -155,7 +158,7 @@ function RequirementDetailPage() {
     });
 
     try {
-      await deleteRequirement(requirementId);
+      await deleteRequirementRecord(requirementId);
       navigate("/requirements");
     } catch (error) {
       setDeleteState({
@@ -182,9 +185,9 @@ function RequirementDetailPage() {
     });
 
     try {
-      const comment = await createRequirementComment(requirementId, {
-        author: userProfile.name,
-        role: userProfile.role,
+      const comment = await createRequirementCommentRecord(requirementId, {
+        author: session.user?.name || "Workspace User",
+        role: session.user?.role || "Contributor",
         message: commentMessage.trim()
       });
 
@@ -193,7 +196,7 @@ function RequirementDetailPage() {
         {
           id: `local-${Date.now()}`,
           requirementId,
-          text: `${userProfile.name} added a new discussion comment.`,
+          text: `${session.user?.name || "Workspace User"} added a new discussion comment.`,
           time: "Just now"
         },
         ...current

@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar, CartesianGrid } from "recharts";
-import { getAnalyticsData } from "../app/api";
+import { getAnalyticsMetrics } from "../app/firestoreService";
 import DataStateBanner from "../components/DataStateBanner";
-import { analyticsCards, analyticsModules, analyticsTrend } from "../data/mockData";
 import { Card, CardHeader } from "../components/ui/Card";
 
 function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState({
-    cards: analyticsCards,
-    trend: analyticsTrend,
-    distribution: analyticsModules
+    cards: [],
+    trend: [],
+    distribution: []
   });
   const [analyticsState, setAnalyticsState] = useState({
     loading: true,
@@ -19,13 +18,13 @@ function AnalyticsPage() {
   useEffect(() => {
     let active = true;
 
-    getAnalyticsData()
+    getAnalyticsMetrics()
       .then((data) => {
         if (active) {
           setAnalyticsData({
-            cards: data.cards ?? analyticsCards,
-            trend: data.trend ?? analyticsTrend,
-            distribution: data.distribution ?? analyticsModules
+            cards: data.cards ?? [],
+            trend: data.trend ?? [],
+            distribution: data.distribution ?? []
           });
           setAnalyticsState({ loading: false, error: "" });
         }
@@ -34,7 +33,7 @@ function AnalyticsPage() {
         if (active) {
           setAnalyticsState({
             loading: false,
-            error: "Analytics service is offline right now, so this page is showing the built-in project metrics."
+            error: "Could not load analytics from Firebase right now."
           });
         }
       });

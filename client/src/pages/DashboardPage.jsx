@@ -56,7 +56,7 @@ function DashboardPage() {
         if (active) {
           setDashboardState({
             loading: false,
-            error: "Live dashboard data is unavailable, so demo data is being shown."
+            error: "Live dashboard data is unavailable right now, so the built-in project data is being shown."
           });
         }
       });

@@ -78,7 +78,7 @@ function RequirementDetailPage() {
         if (active) {
           setDetailState({
             loading: false,
-            error: fallbackRequirement ? "Live detail data is unavailable, so demo data is being shown." : "Requirement not found."
+            error: fallbackRequirement ? "Live detail data is unavailable right now, so the built-in project record is being shown." : "Requirement not found."
           });
         }
       });

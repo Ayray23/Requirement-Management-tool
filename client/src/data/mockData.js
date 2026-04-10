@@ -1,9 +1,9 @@
 export const userProfile = {
-  name: "Alex Morgan",
-  role: "Senior Product Owner",
-  email: "alex.morgan@techcorp.io",
+  name: "Jordan Lee",
+  role: "Product Lead",
+  email: "jordan.lee@techcorp.io",
   team: "Platform Strategy",
-  initials: "AM"
+  initials: "JL"
 };
 
 export const kpis = [
@@ -20,7 +20,7 @@ export const requirements = [
     module: "Access Control",
     priority: "Critical",
     status: "In Review",
-    owner: "Alex Morgan",
+    owner: "Jordan Lee",
     sprint: "Sprint 7",
     progress: 78,
     description:
@@ -92,7 +92,7 @@ export const requirements = [
     module: "Intelligence",
     priority: "Critical",
     status: "Blocked",
-    owner: "Alex Morgan",
+    owner: "Jordan Lee",
     sprint: "Sprint 7",
     progress: 45,
     description:
@@ -194,7 +194,7 @@ export const collaborationThreads = [
     title: "Conflict detection model choice",
     tag: "REQ-005",
     participants: 5,
-    owner: "Alex Morgan",
+    owner: "Jordan Lee",
     status: "Escalated",
     updatedAt: "Today",
     excerpt: "The AI assistant recommends a rules-first approach before adding generative summarization."
@@ -202,7 +202,7 @@ export const collaborationThreads = [
 ];
 
 export const collaborationMembers = [
-  { name: "Alex Morgan", role: "Admin", focus: "Governance and delivery approvals" },
+  { name: "Jordan Lee", role: "Admin", focus: "Governance and delivery approvals" },
   { name: "Sarah Kim", role: "Analyst", focus: "Flows, UX, and requirement refinement" },
   { name: "Maria Liu", role: "Stakeholder", focus: "Business goals and acceptance criteria" },
   { name: "James Torres", role: "Developer", focus: "Architecture, security, and implementation" }

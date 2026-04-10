@@ -20,7 +20,7 @@ export const requirements = [
     status: "In Review",
     priority: "Critical",
     module: "Access Control",
-    owner: "Alex Morgan",
+    owner: "Jordan Lee",
     sprint: "Sprint 7",
     progress: 78,
     description:
@@ -92,7 +92,7 @@ export const requirements = [
     status: "Blocked",
     priority: "Critical",
     module: "Intelligence",
-    owner: "Alex Morgan",
+    owner: "Jordan Lee",
     sprint: "Sprint 7",
     progress: 45,
     description:

@@ -34,7 +34,7 @@ function AnalyticsPage() {
         if (active) {
           setAnalyticsState({
             loading: false,
-            error: "Analytics service is offline right now, so this page is showing demo metrics."
+            error: "Analytics service is offline right now, so this page is showing the built-in project metrics."
           });
         }
       });

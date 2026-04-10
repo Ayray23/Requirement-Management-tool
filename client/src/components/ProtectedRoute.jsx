@@ -7,6 +7,10 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   const location = useLocation();
   const { session } = useAuth();
 
+  if (session.loading) {
+    return <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-center text-slate-200">Checking your session...</div>;
+  }
+
   if (!session.isAuthenticated) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }

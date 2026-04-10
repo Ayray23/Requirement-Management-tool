@@ -6,6 +6,7 @@ import AnalyticsPage from "../pages/AnalyticsPage";
 import CollaborationPage from "../pages/CollaborationPage";
 import DashboardPage from "../pages/DashboardPage";
 import LoginPage from "../pages/LoginPage";
+import RegisterPage from "../pages/RegisterPage";
 import RequirementDetailPage from "../pages/RequirementDetailPage";
 import RequirementsPage from "../pages/RequirementsPage";
 import SettingsPage from "../pages/SettingsPage";
@@ -16,6 +17,7 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/*"
           element={

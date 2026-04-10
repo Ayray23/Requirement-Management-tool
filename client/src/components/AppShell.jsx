@@ -90,8 +90,8 @@ function AppShell({ children }) {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => {
-                      signOut();
+                    onClick={async () => {
+                      await signOut();
                       navigate("/");
                     }}
                   >

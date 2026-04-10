@@ -1,8 +1,11 @@
-import { userProfile } from "../data/mockData";
+import { useAuth } from "../app/AuthContext";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 import { Field, TextArea, TextInput } from "../components/ui/Field";
 
 function SettingsPage() {
+  const { session } = useAuth();
+  const profile = session.user;
+
   return (
     <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
       <Card>
@@ -10,13 +13,13 @@ function SettingsPage() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Field label="Full name">
-            <TextInput defaultValue={userProfile.name} />
+            <TextInput defaultValue={profile?.name || "Jordan Lee"} />
           </Field>
           <Field label="Role">
-            <TextInput defaultValue={userProfile.role} />
+            <TextInput defaultValue={profile?.role || "Admin"} />
           </Field>
           <Field className="md:col-span-2" label="Email">
-            <TextInput defaultValue={userProfile.email} />
+            <TextInput defaultValue={profile?.email || "jordan.lee@techcorp.io"} />
           </Field>
           <Field className="md:col-span-2" label="Bio">
             <TextArea

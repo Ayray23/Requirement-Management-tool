@@ -3,7 +3,7 @@ import {
   requirementActivity,
   requirementComments,
   requirements
-} from "../data/mockData.js";
+} from "../data/workspaceSeed.js";
 
 const REQUIREMENTS_COLLECTION = "requirements";
 

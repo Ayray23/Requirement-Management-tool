@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-import { initializeFirebase } from "./config/firebase.js";
+import { initializeFirebase, isFirebaseConfigured } from "./config/firebase.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
@@ -28,7 +28,8 @@ app.use(express.json());
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
-    message: "REMT API is running"
+    message: "REMT API is running",
+    firebaseConfigured: isFirebaseConfigured()
   });
 });
 

@@ -1,32 +1,23 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { firebaseAuth } from "./firebase";
+import { normalizeRole, normalizeStatus } from "./roles";
+import { subscribeToUserProfile, syncCurrentUserProfile } from "./services/userService";
 
 const SESSION_KEY = "remt-auth-session";
-
-const defaultUser = {
-  name: "Jordan Lee",
-  role: "Admin",
-  email: "jordan.lee@techcorp.io",
-  team: "Platform Strategy",
-  initials: "JL"
-};
 
 const defaultSession = {
   loading: true,
   isAuthenticated: false,
-  user: null
-};
-
-const roleMap = {
-  "jordan.lee@techcorp.io": "Admin",
-  "sarah.kim@techcorp.io": "Analyst",
-  "maria.liu@techcorp.io": "Stakeholder",
-  "james.torres@techcorp.io": "Developer"
+  user: null,
+  claims: {
+    role: "user",
+    status: "active"
+  }
 };
 
 function formatNameFromEmail(email) {
-  return (email || defaultUser.email)
+  return (email || "workspace.user@remt.app")
     .split("@")[0]
     .replace(/[._-]+/g, " ")
     .split(" ")
@@ -35,28 +26,33 @@ function formatNameFromEmail(email) {
     .join(" ");
 }
 
-function buildSession(userInput) {
-  const normalizedEmail =
-    typeof userInput === "string" ? userInput.trim().toLowerCase() : userInput?.email?.trim().toLowerCase() || defaultUser.email;
-  const resolvedName =
-    typeof userInput === "string"
-      ? formatNameFromEmail(normalizedEmail)
-      : userInput?.displayName || userInput?.name || formatNameFromEmail(normalizedEmail);
-  const role = roleMap[normalizedEmail] || "Admin";
+function buildSession(firebaseUser, profile, claims = {}) {
+  const email = firebaseUser?.email?.trim().toLowerCase() || profile?.email?.trim().toLowerCase() || "";
+  const name = profile?.displayName || firebaseUser?.displayName || formatNameFromEmail(email);
+  const role = normalizeRole(claims.role || profile?.role);
+  const status = normalizeStatus(claims.status || profile?.status);
 
   return {
     loading: false,
-    isAuthenticated: true,
+    isAuthenticated: status === "active",
     user: {
-      ...defaultUser,
-      name: resolvedName,
-      email: normalizedEmail,
+      uid: firebaseUser?.uid || profile?.uid || "",
+      name,
+      email,
       role,
-      initials: resolvedName
+      status,
+      department: profile?.department || "Product Delivery",
+      title: profile?.title || "Workspace Member",
+      photoURL: profile?.photoURL || firebaseUser?.photoURL || "",
+      initials: name
         .split(" ")
         .map((part) => part.charAt(0).toUpperCase())
         .slice(0, 2)
         .join("")
+    },
+    claims: {
+      role,
+      status
     }
   };
 }
@@ -71,82 +67,86 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(defaultSession);
 
   useEffect(() => {
-    if (firebaseAuth) {
-      const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
-        if (firebaseUser) {
-          const nextSession = buildSession({
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName
-          });
-          setSession(nextSession);
-          window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-          return;
-        }
+    let unsubscribeProfile = null;
 
-        const savedSession = window.localStorage.getItem(SESSION_KEY);
-
-        if (savedSession) {
-          try {
-            const parsedSession = JSON.parse(savedSession);
-
-            if (parsedSession?.isAuthenticated) {
-              setSession({
-                ...parsedSession,
-                loading: false
-              });
-              return;
-            }
-          } catch {
-            window.localStorage.removeItem(SESSION_KEY);
-          }
-        }
-
-        setSession({
-          loading: false,
-          isAuthenticated: false,
-          user: null
-        });
-      });
-
-      return unsubscribe;
-    }
-
-    const savedSession = window.localStorage.getItem(SESSION_KEY);
-
-    if (!savedSession) {
+    if (!firebaseAuth) {
       setSession({
         loading: false,
         isAuthenticated: false,
-        user: null
+        user: null,
+        claims: {
+          role: "user",
+          status: "active"
+        }
       });
-      return;
+      return undefined;
     }
 
-    try {
-      const parsedSession = JSON.parse(savedSession);
-      if (parsedSession?.isAuthenticated) {
+    const unsubscribeAuth = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = null;
+        }
+
+        window.localStorage.removeItem(SESSION_KEY);
         setSession({
-          ...parsedSession,
-          loading: false
+          loading: false,
+          isAuthenticated: false,
+          user: null,
+          claims: {
+            role: "user",
+            status: "active"
+          }
         });
         return;
       }
-    } catch {
-      window.localStorage.removeItem(SESSION_KEY);
-    }
 
-    setSession({
-      loading: false,
-      isAuthenticated: false,
-      user: null
+      const tokenResult = await firebaseUser.getIdTokenResult();
+      const claims = {
+        role: normalizeRole(tokenResult.claims.role),
+        status: normalizeStatus(tokenResult.claims.status)
+      };
+      const profile = await syncCurrentUserProfile(firebaseUser, claims);
+      const nextSession = buildSession(firebaseUser, profile, claims);
+
+      setSession(nextSession);
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+
+      unsubscribeProfile = subscribeToUserProfile(
+        firebaseUser.uid,
+        (nextProfile) => {
+          if (!nextProfile) {
+            return;
+          }
+
+          const syncedSession = buildSession(firebaseUser, nextProfile, {
+            role: normalizeRole(nextProfile.role),
+            status: normalizeStatus(nextProfile.status)
+          });
+
+          setSession(syncedSession);
+          window.localStorage.setItem(SESSION_KEY, JSON.stringify(syncedSession));
+        },
+        () => {}
+      );
     });
+
+    return () => {
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+
+      unsubscribeAuth();
+    };
   }, []);
 
-  function signIn(userInput) {
-    const nextSession = buildSession(userInput);
-    setSession(nextSession);
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-    return nextSession;
+  function signIn() {
+    return null;
   }
 
   async function signOut() {
@@ -158,7 +158,15 @@ export function AuthProvider({ children }) {
       }
     }
 
-    setSession(defaultSession);
+    setSession({
+      loading: false,
+      isAuthenticated: false,
+      user: null,
+      claims: {
+        role: "user",
+        status: "active"
+      }
+    });
     window.localStorage.removeItem(SESSION_KEY);
   }
 
@@ -176,12 +184,4 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-}
-
-export function hasRequiredRole(userRole, allowedRoles = []) {
-  if (allowedRoles.length === 0) {
-    return true;
-  }
-
-  return allowedRoles.includes(userRole);
 }

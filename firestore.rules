@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return isSignedIn() && request.auth.token.role is string
+        ? request.auth.token.role
+        : "user";
+    }
+
+    function isAdmin() {
+      return role() == "admin" || role() == "super-admin";
+    }
+
+    function isSuperAdmin() {
+      return role() == "super-admin";
+    }
+
+    function isActive() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active";
+    }
+
+    function isOwnUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function validUserCreate() {
+      return request.resource.data.keys().hasOnly([
+        "displayName",
+        "email",
+        "photoURL",
+        "role",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "lastLoginAt"
+      ])
+      && request.resource.data.email == request.auth.token.email
+      && request.resource.data.role == "user"
+      && request.resource.data.status == "active";
+    }
+
+    function validOwnUserUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        "displayName",
+        "photoURL",
+        "department",
+        "title",
+        "phoneNumber",
+        "updatedAt",
+        "lastLoginAt"
+      ]);
+    }
+
+    function validRequirementWrite() {
+      return request.resource.data.keys().hasAll([
+        "title",
+        "module",
+        "priority",
+        "status",
+        "ownerName",
+        "ownerUid",
+        "sprint",
+        "progress",
+        "description",
+        "acceptanceCriteria",
+        "dependencyIds",
+        "tags",
+        "commentCount",
+        "activityCount",
+        "createdByUid",
+        "createdByName",
+        "updatedByUid",
+        "updatedByName",
+        "createdAt",
+        "updatedAt"
+      ])
+      && request.resource.data.progress is int
+      && request.resource.data.progress >= 0
+      && request.resource.data.progress <= 100
+      && request.resource.data.acceptanceCriteria is list
+      && request.resource.data.dependencyIds is list
+      && request.resource.data.tags is list;
+    }
+
+    match /users/{userId} {
+      allow read: if isActive() && (isOwnUser(userId) || isAdmin());
+      allow create: if isOwnUser(userId) && validUserCreate();
+      allow update: if isActive() && (
+        (isOwnUser(userId) && validOwnUserUpdate())
+        || isAdmin()
+      );
+      allow delete: if false;
+    }
+
+    match /requirements/{requirementId} {
+      allow read: if isActive();
+      allow create: if isActive() && isAdmin() && validRequirementWrite();
+      allow update: if isActive() && isAdmin() && validRequirementWrite();
+      allow delete: if false;
+
+      match /comments/{commentId} {
+        allow read: if isActive();
+        allow create: if isActive()
+          && request.resource.data.keys().hasOnly([
+            "authorName",
+            "authorUid",
+            "authorRole",
+            "message",
+            "createdAt"
+          ])
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.message is string
+          && request.resource.data.message.size() > 0
+          && request.resource.data.message.size() <= 2000;
+        allow update, delete: if isActive() && isAdmin();
+      }
+
+      match /activity/{activityId} {
+        allow read: if isActive();
+        allow create, update: if isActive() && isAdmin();
+        allow delete: if false;
+      }
+    }
+  }
+}

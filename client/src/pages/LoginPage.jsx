@@ -11,10 +11,10 @@ import { Field, TextInput } from "../components/ui/Field";
 function LoginPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { session, signIn } = useAuth();
+  const { session } = useAuth();
   const [credentials, setCredentials] = useState({
-    email: "jordan.lee@techcorp.io",
-    password: "password123"
+    email: "",
+    password: ""
   });
   const [loginState, setLoginState] = useState({
     status: "idle",
@@ -33,9 +33,9 @@ function LoginPage() {
 
   useEffect(() => {
     if (session.isAuthenticated) {
-      navigate("/dashboard", { replace: true });
+      navigate(redirectPath, { replace: true });
     }
-  }, [navigate, session.isAuthenticated]);
+  }, [navigate, redirectPath, session.isAuthenticated]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -62,19 +62,11 @@ function LoginPage() {
     });
 
     try {
-      const result = await signInWithEmail(credentials.email, credentials.password);
-      signIn(result.user || credentials.email);
+      await signInWithEmail(credentials.email, credentials.password);
       setLoginState({
         status: "success",
-        message:
-          result.mode === "firebase"
-            ? "Signed in with Firebase. Redirecting to your workspace..."
-            : "Firebase is not configured in this environment yet, so local workspace access was used. Redirecting to your workspace..."
+        message: "Signed in successfully. Loading your workspace..."
       });
-
-      window.setTimeout(() => {
-        navigate(redirectPath);
-      }, 700);
     } catch (error) {
       setLoginState({
         status: "error",
@@ -90,19 +82,11 @@ function LoginPage() {
     });
 
     try {
-      const result = await signInWithGoogleProvider();
-      signIn(result.user || credentials.email);
+      await signInWithGoogleProvider();
       setLoginState({
         status: "success",
-        message:
-          result.mode === "firebase"
-            ? "Google sign-in successful. Redirecting to your workspace..."
-            : "Firebase is not configured in this environment yet, so local workspace access was used. Redirecting to your workspace..."
+        message: "Google sign-in successful. Loading your workspace..."
       });
-
-      window.setTimeout(() => {
-        navigate(redirectPath);
-      }, 700);
     } catch (error) {
       setLoginState({
         status: "error",
@@ -121,19 +105,19 @@ function LoginPage() {
             </div>
             <span className="mt-4 inline-block uppercase tracking-[0.24em] text-slate-300">REMT Platform</span>
             <h1 className="mt-6 font-display text-5xl font-bold leading-none sm:text-6xl">
-              Elicit. Manage.
+              Govern requirements.
               <br />
-              <span className="bg-remt-text bg-clip-text text-transparent">Ship requirements with confidence.</span>
+              <span className="bg-remt-text bg-clip-text text-transparent">Operate like a real product team.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-8 text-slate-300">
-              A smart requirement elicitation and management tool for capturing stakeholder needs, tracking delivery
-              readiness, and presenting final-year work like a real product team built it.
+              Secure sign-in, live Firestore data, role-governed actions, and operational visibility built into one
+              requirement management workspace.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-8">
-              <Stat label="Active Projects" value="12" />
-              <Stat label="Conflict Alerts" value="07" />
-              <Stat label="Team Velocity" value="96%" />
+              <Stat label="Live Firestore" value="100%" />
+              <Stat label="Protected Actions" value="RBAC" />
+              <Stat label="User Sessions" value="Persistent" />
             </div>
 
             <div className="mt-10 flex max-w-xl gap-4 rounded-3xl border border-fuchsia-400/20 bg-fuchsia-400/10 p-5 backdrop-blur-xl">
@@ -141,7 +125,8 @@ function LoginPage() {
                 <Sparkles />
               </div>
               <div className="text-sm leading-7 text-slate-200">
-                REMT AI identified 3 ambiguous requirements in Sprint 7 and suggested refinements before development.
+                Google sign-in requires the Firebase Google provider to be enabled and your deployment domain to be
+                added under Firebase Authentication authorized domains.
               </div>
             </div>
           </div>
@@ -152,9 +137,6 @@ function LoginPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Welcome back</p>
             <h2 className="mt-3 text-3xl font-bold">Sign in to your workspace</h2>
             <p className="mt-2 text-sm text-slate-400">Use Firebase email/password or Google access to enter the workspace.</p>
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-              Workspace roles: Admin `jordan.lee@techcorp.io`, Analyst `sarah.kim@techcorp.io`, Stakeholder `maria.liu@techcorp.io`, Developer `james.torres@techcorp.io`
-            </div>
 
             <form className="mt-8 grid gap-4" onSubmit={handleLogin}>
               <Field label="Email address">
@@ -166,7 +148,7 @@ function LoginPage() {
               </Field>
 
               <Button className="mt-2 w-full" type="submit">
-                Enter workspace
+                Sign in
                 <ChevronRight />
               </Button>
             </form>

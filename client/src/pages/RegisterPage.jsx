@@ -9,7 +9,7 @@ import { Field, TextInput } from "../components/ui/Field";
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { session, signIn } = useAuth();
+  const { session } = useAuth();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -67,19 +67,11 @@ function RegisterPage() {
     });
 
     try {
-      const result = await createAccountWithEmail(form.email, form.password);
-      signIn(result.user || form.email);
+      await createAccountWithEmail(form.email, form.password);
       setRegisterState({
         status: "success",
-        message:
-          result.mode === "firebase"
-            ? "Account created successfully. Redirecting to your workspace..."
-            : "Firebase is not configured in this environment yet, so local workspace access was used. Redirecting to your workspace..."
+        message: "Account created successfully. Loading your workspace..."
       });
-
-      window.setTimeout(() => {
-        navigate("/dashboard");
-      }, 700);
     } catch (error) {
       setRegisterState({
         status: "error",
@@ -95,19 +87,11 @@ function RegisterPage() {
     });
 
     try {
-      const result = await signInWithGoogleProvider();
-      signIn(result.user || form.email);
+      await signInWithGoogleProvider();
       setRegisterState({
         status: "success",
-        message:
-          result.mode === "firebase"
-            ? "Google account connected successfully. Redirecting to your workspace..."
-            : "Firebase is not configured in this environment yet, so local workspace access was used. Redirecting to your workspace..."
+        message: "Google account connected successfully. Loading your workspace..."
       });
-
-      window.setTimeout(() => {
-        navigate("/dashboard");
-      }, 700);
     } catch (error) {
       setRegisterState({
         status: "error",
@@ -131,7 +115,8 @@ function RegisterPage() {
               <span className="bg-remt-text bg-clip-text text-transparent">workspace account.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-8 text-slate-300">
-              Set up access for analysts, stakeholders, and developers while keeping the same design language already built into the platform.
+              Register a new Firebase account, create your user profile, and join the requirement workspace with a
+              secure persistent session.
             </p>
 
             <div className="mt-10 flex max-w-xl gap-4 rounded-3xl border border-fuchsia-400/20 bg-fuchsia-400/10 p-5 backdrop-blur-xl">
@@ -139,7 +124,8 @@ function RegisterPage() {
                 <Sparkles />
               </div>
               <div className="text-sm leading-7 text-slate-200">
-                If Google access fails, make sure the Vercel domain is added to Firebase Authentication authorized domains and the Google provider is enabled.
+                New accounts start with the standard user role. Admin and super-admin privileges are granted from the
+                governance panel using Firebase custom claims.
               </div>
             </div>
           </div>

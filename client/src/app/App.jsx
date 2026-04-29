@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./AuthContext";
 import AppShell from "../components/AppShell";
 import ProtectedRoute from "../components/ProtectedRoute";
+import AdminPage from "../pages/AdminPage";
 import AnalyticsPage from "../pages/AnalyticsPage";
 import CollaborationPage from "../pages/CollaborationPage";
 import DashboardPage from "../pages/DashboardPage";
@@ -26,26 +27,27 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="/requirements" element={<RequirementsPage />} />
                   <Route path="/requirements/:requirementId" element={<RequirementDetailPage />} />
                   <Route path="/collaboration" element={<CollaborationPage />} />
                   <Route
                     path="/workbench"
                     element={
-                      <ProtectedRoute allowedRoles={["Admin", "Analyst"]}>
+                      <ProtectedRoute allowedRoles={["admin"]}>
                         <WorkbenchPage />
                       </ProtectedRoute>
                     }
                   />
                   <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute allowedRoles={["Admin"]}>
-                        <SettingsPage />
-                      </ProtectedRoute>
-                    }
-                  />
+                  <Route path="/settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </AppShell>

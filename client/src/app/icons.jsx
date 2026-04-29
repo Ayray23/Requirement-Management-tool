@@ -1,31 +1,35 @@
 export function LayoutDashboard() {
-  return <span>◫</span>;
+  return <span>D</span>;
 }
 
 export function ClipboardList() {
-  return <span>☰</span>;
+  return <span>R</span>;
 }
 
 export function Sparkles() {
-  return <span>✦</span>;
+  return <span>A</span>;
 }
 
 export function BarChart3() {
-  return <span>▥</span>;
+  return <span>N</span>;
 }
 
 export function Settings() {
-  return <span>⚙</span>;
+  return <span>C</span>;
 }
 
 export function Bell() {
-  return <span>◌</span>;
+  return <span>B</span>;
 }
 
 export function Users() {
-  return <span>◎</span>;
+  return <span>U</span>;
 }
 
 export function ChevronRight() {
-  return <span>→</span>;
+  return <span>{">"}</span>;
+}
+
+export function Shield() {
+  return <span>S</span>;
 }

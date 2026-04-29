@@ -1,14 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
-import { Bell, Users, BarChart3, ClipboardList, LayoutDashboard, Settings, Sparkles } from "../app/icons";
+import { canManageRequirements, canManageUsers } from "../app/roles";
+import { Bell, Users, BarChart3, ClipboardList, LayoutDashboard, Settings, Shield, Sparkles } from "../app/icons";
 import Button from "./ui/Button";
 import { Card } from "./ui/Card";
 
-const navItems = [
+const baseNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/requirements", label: "Requirements", icon: ClipboardList },
   { to: "/collaboration", label: "Collaboration", icon: Users },
-  { to: "/workbench", label: "AI Workbench", icon: Sparkles },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings }
 ];
@@ -17,6 +17,13 @@ function AppShell({ children }) {
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
   const profile = session.user;
+  const navItems = [
+    ...baseNavItems.slice(0, 1),
+    ...(canManageUsers(profile?.role) ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
+    ...baseNavItems.slice(1, 3),
+    ...(canManageRequirements(profile?.role) ? [{ to: "/workbench", label: "AI Workbench", icon: Sparkles }] : []),
+    ...baseNavItems.slice(3)
+  ];
 
   return (
     <div className="min-h-screen bg-remt-bg bg-remt-scene font-body text-slate-100">
@@ -63,7 +70,10 @@ function AppShell({ children }) {
               </div>
               <div>
                 <strong className="block text-sm">{profile?.name ?? "Workspace User"}</strong>
-                <p className="text-xs text-slate-400">{profile?.role ?? "Guest"}</p>
+                <p className="text-xs text-slate-400">
+                  {profile?.role ?? "Guest"}
+                  {profile?.status ? ` • ${profile.status}` : ""}
+                </p>
               </div>
             </div>
           </Card>
@@ -74,11 +84,11 @@ function AppShell({ children }) {
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Smart Requirement Elicitation & Management Tool</h3>
-                <p className="text-sm text-slate-400">Final Year Project Workspace</p>
+                <p className="text-sm text-slate-400">Enterprise workspace</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-400">
-                  Search requirements, projects, teams
+                  Search requirements, owners, and governance activity
                 </div>
                 <div className="flex gap-3">
                   <Button type="button" variant="icon" size="icon">

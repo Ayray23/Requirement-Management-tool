@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../app/AuthContext";
+import { canManageRequirements } from "../app/roles";
 import { Sparkles } from "../app/icons";
 import { downloadProjectSummaryReport } from "../app/api";
 import { getDashboardMetrics } from "../app/firestoreService";
@@ -8,6 +10,7 @@ import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 
 function DashboardPage() {
+  const { session } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     summary: {
       productName: "REMT",
@@ -98,9 +101,11 @@ function DashboardPage() {
               <Button type="button" variant="secondary" onClick={handleExportReport}>
                 Export report
               </Button>
-              <Button as={NavLink} to="/workbench">
-                New requirement
-              </Button>
+              {canManageRequirements(session.user?.role) ? (
+                <Button as={NavLink} to="/workbench">
+                  New requirement
+                </Button>
+              ) : null}
             </>
           }
         />

@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup
 } from "firebase/auth";
+import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 import { initializeFirestore, persistentLocalCache } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -14,18 +16,37 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const hasFirebaseConfig = Boolean(firebaseConfig.projectId);
 
 export const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
+export const functions = firebaseApp ? getFunctions(firebaseApp, "us-central1") : null;
 export const db = firebaseApp
   ? initializeFirestore(firebaseApp, {
       localCache: persistentLocalCache()
     })
   : null;
+export let analytics = null;
+
+if (firebaseApp && typeof window !== "undefined") {
+  isSupported()
+    .then((supported) => {
+      if (supported) {
+        analytics = getAnalytics(firebaseApp);
+      }
+    })
+    .catch(() => {
+      analytics = null;
+    });
+}
+
+if (functions && import.meta.env.DEV && import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === "true") {
+  connectFunctionsEmulator(functions, "localhost", 5001);
+}
 
 function mapAuthError(error) {
   const code = error?.code || "";
@@ -54,17 +75,14 @@ function mapAuthError(error) {
 
 export async function signInWithEmail(email, password) {
   if (!firebaseAuth) {
-    return {
-      mode: "local",
-      user: {
-        email,
-        displayName: "Workspace User"
-      }
-    };
+    throw new Error("Firebase authentication is not configured yet.");
   }
 
   try {
     const credentials = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    trackAppEvent("login", {
+      method: "password"
+    });
 
     return {
       mode: "firebase",
@@ -77,17 +95,14 @@ export async function signInWithEmail(email, password) {
 
 export async function createAccountWithEmail(email, password) {
   if (!firebaseAuth) {
-    return {
-      mode: "local",
-      user: {
-        email,
-        displayName: "Workspace User"
-      }
-    };
+    throw new Error("Firebase authentication is not configured yet.");
   }
 
   try {
     const credentials = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    trackAppEvent("sign_up", {
+      method: "password"
+    });
 
     return {
       mode: "firebase",
@@ -100,13 +115,7 @@ export async function createAccountWithEmail(email, password) {
 
 export async function signInWithGoogleProvider() {
   if (!firebaseAuth) {
-    return {
-      mode: "local",
-      user: {
-        email: "workspace.google@remt.app",
-        displayName: "Workspace Google User"
-      }
-    };
+    throw new Error("Firebase authentication is not configured yet.");
   }
 
   const provider = new GoogleAuthProvider();
@@ -116,12 +125,23 @@ export async function signInWithGoogleProvider() {
 
   try {
     const result = await signInWithPopup(firebaseAuth, provider);
+    trackAppEvent("login", {
+      method: "google"
+    });
 
     return {
       mode: "firebase",
       user: result.user
     };
-  } catch (error) {
-    throw new Error(mapAuthError(error));
+    } catch (error) {
+      throw new Error(mapAuthError(error));
+    }
+}
+
+export function trackAppEvent(name, params = {}) {
+  if (!analytics) {
+    return;
   }
+
+  logEvent(analytics, name, params);
 }

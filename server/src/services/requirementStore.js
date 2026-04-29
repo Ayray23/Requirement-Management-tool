@@ -1,89 +1,77 @@
 import { getFirestoreDb } from "../config/firebase.js";
-import {
-  requirementActivity,
-  requirementComments,
-  requirements
-} from "../data/workspaceSeed.js";
 
 const REQUIREMENTS_COLLECTION = "requirements";
 
-function cloneRequirement(requirement) {
+function normalizeArray(values) {
+  return Array.isArray(values) ? values.filter(Boolean) : [];
+}
+
+function normalizeRequirement(id, data = {}) {
   return {
-    ...requirement,
-    acceptanceCriteria: [...(requirement.acceptanceCriteria ?? [])],
-    dependencies: [...(requirement.dependencies ?? [])]
+    id,
+    title: data.title || "Untitled Requirement",
+    module: data.module || "General",
+    priority: data.priority || "Medium",
+    status: data.status || "Draft",
+    owner: data.ownerName || data.owner || "Unassigned",
+    ownerName: data.ownerName || data.owner || "Unassigned",
+    ownerUid: data.ownerUid || "",
+    sprint: data.sprint || "Backlog",
+    progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : 0,
+    description: data.description || "",
+    acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
+    dependencies: normalizeArray(data.dependencyIds || data.dependencies),
+    dependencyIds: normalizeArray(data.dependencyIds || data.dependencies),
+    commentCount: Number.isFinite(Number(data.commentCount)) ? Number(data.commentCount) : normalizeArray(data.comments).length,
+    activityCount: Number.isFinite(Number(data.activityCount)) ? Number(data.activityCount) : normalizeArray(data.activity).length,
+    createdAt: data.createdAt || null,
+    updatedAt: data.updatedAt || null
   };
 }
 
-function cloneComment(comment) {
-  return { ...comment };
+function normalizeComment(id, data = {}) {
+  return {
+    id,
+    author: data.authorName || data.author || "Workspace User",
+    authorName: data.authorName || data.author || "Workspace User",
+    authorUid: data.authorUid || "",
+    role: data.authorRole || data.role || "user",
+    authorRole: data.authorRole || data.role || "user",
+    message: data.message || "",
+    createdAt: data.createdAt || null,
+    time: "Recently updated"
+  };
 }
 
-function cloneActivity(activity) {
-  return { ...activity };
+function normalizeActivity(id, data = {}) {
+  return {
+    id,
+    type: data.type || "update",
+    text: data.text || "Requirement updated.",
+    actorName: data.actorName || "",
+    actorUid: data.actorUid || "",
+    createdAt: data.createdAt || null,
+    time: "Recently updated"
+  };
 }
 
-function createRelativeTimeLabel() {
-  return "Just now";
-}
-
-function createRequirementId(nextCount) {
-  return `REQ-${String(nextCount).padStart(3, "0")}`;
-}
-
-function createCollectionSnapshot() {
-  return requirements.map((requirement) => ({
-    ...cloneRequirement(requirement),
-    comments: requirementComments
-      .filter((comment) => comment.requirementId === requirement.id)
-      .map(cloneComment),
-    activity: requirementActivity
-      .filter((item) => item.requirementId === requirement.id)
-      .map(cloneActivity)
-  }));
-}
-
-async function ensureFirestoreSeedData(db) {
-  const collection = db.collection(REQUIREMENTS_COLLECTION);
-  const snapshot = await collection.limit(1).get();
-
-  if (!snapshot.empty) {
-    return;
-  }
-
-  const seedData = createCollectionSnapshot();
-
-  await Promise.all(
-    seedData.map((requirement) =>
-      collection.doc(requirement.id).set({
-        ...requirement,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-    )
-  );
-}
-
-async function getFirestoreCollection() {
-  const db = getFirestoreDb();
-
-  if (!db) {
-    return null;
-  }
-
-  await ensureFirestoreSeedData(db);
-  return db.collection(REQUIREMENTS_COLLECTION);
+async function getCollection() {
+  return getFirestoreDb().collection(REQUIREMENTS_COLLECTION);
 }
 
 async function listRequirementsFromFirestore(collection) {
-  const snapshot = await collection.get();
-  return snapshot.docs.map((document) => {
-    const data = document.data();
-    return {
-      ...data,
-      id: document.id
-    };
-  });
+  const snapshot = await collection.orderBy("updatedAt", "desc").get();
+  return snapshot.docs.map((document) => normalizeRequirement(document.id, document.data()));
+}
+
+async function getRequirementComments(documentRef) {
+  const snapshot = await documentRef.collection("comments").orderBy("createdAt", "desc").get();
+  return snapshot.docs.map((document) => normalizeComment(document.id, document.data()));
+}
+
+async function getRequirementActivity(documentRef) {
+  const snapshot = await documentRef.collection("activity").orderBy("createdAt", "desc").get();
+  return snapshot.docs.map((document) => normalizeActivity(document.id, document.data()));
 }
 
 function toRequirementSummary(requirement) {
@@ -93,7 +81,7 @@ function toRequirementSummary(requirement) {
     status: requirement.status,
     priority: requirement.priority,
     module: requirement.module,
-    owner: requirement.owner,
+    owner: requirement.ownerName,
     sprint: requirement.sprint,
     progress: requirement.progress,
     description: requirement.description
@@ -101,271 +89,172 @@ function toRequirementSummary(requirement) {
 }
 
 export async function listRequirements() {
-  const collection = await getFirestoreCollection();
-
-  if (collection) {
-    const firestoreRequirements = await listRequirementsFromFirestore(collection);
-    return firestoreRequirements.map(toRequirementSummary);
-  }
-
-  return requirements.map(cloneRequirement);
+  const collection = await getCollection();
+  const firestoreRequirements = await listRequirementsFromFirestore(collection);
+  return firestoreRequirements.map(toRequirementSummary);
 }
 
 export async function getRequirementById(id) {
-  const collection = await getFirestoreCollection();
+  const collection = await getCollection();
+  const document = await collection.doc(id).get();
 
-  if (collection) {
-    const document = await collection.doc(id).get();
-
-    if (!document.exists) {
-      return null;
-    }
-
-    return {
-      ...document.data(),
-      id: document.id
-    };
-  }
-
-  const requirement = requirements.find((item) => item.id === id);
-
-  if (!requirement) {
+  if (!document.exists) {
     return null;
   }
 
+  const [comments, activity] = await Promise.all([getRequirementComments(document.ref), getRequirementActivity(document.ref)]);
+
   return {
-    ...cloneRequirement(requirement),
-    comments: requirementComments
-      .filter((comment) => comment.requirementId === id)
-      .map(cloneComment),
-    activity: requirementActivity
-      .filter((item) => item.requirementId === id)
-      .map(cloneActivity)
+    ...normalizeRequirement(document.id, document.data()),
+    comments,
+    activity
   };
 }
 
 export async function createRequirement(input) {
-  const collection = await getFirestoreCollection();
-  const now = new Date().toISOString();
-
-  if (collection) {
-    const existingRequirements = await listRequirementsFromFirestore(collection);
-    const newRequirement = {
-      id: createRequirementId(existingRequirements.length + 1),
-      title: input.title || "Untitled Requirement",
-      module: input.module || "General",
-      priority: input.priority || "Medium",
-      status: "Draft",
-      owner: input.owner || "Unassigned",
-      sprint: input.sprint || "Backlog",
-      progress: 0,
-      description: input.description || "",
-      acceptanceCriteria: [],
-      dependencies: [],
-      comments: [],
-      activity: [
-        {
-          id: `a${Date.now()}`,
-          requirementId: createRequirementId(existingRequirements.length + 1),
-          text: "Requirement created from the AI workbench.",
-          time: createRelativeTimeLabel()
-        }
-      ],
-      createdAt: now,
-      updatedAt: now
-    };
-
-    await collection.doc(newRequirement.id).set(newRequirement);
-    return newRequirement;
-  }
-
+  const collection = await getCollection();
+  const existingRequirements = await listRequirementsFromFirestore(collection);
+  const nextId = `REQ-${String(existingRequirements.length + 1).padStart(3, "0")}`;
   const newRequirement = {
-    id: createRequirementId(requirements.length + 1),
     title: input.title || "Untitled Requirement",
     module: input.module || "General",
     priority: input.priority || "Medium",
     status: "Draft",
-    owner: input.owner || "Unassigned",
+    ownerName: input.ownerName || input.owner || "Unassigned",
+    ownerUid: input.ownerUid || "",
     sprint: input.sprint || "Backlog",
     progress: 0,
     description: input.description || "",
-    acceptanceCriteria: [],
-    dependencies: []
+    acceptanceCriteria: normalizeArray(input.acceptanceCriteria),
+    dependencyIds: normalizeArray(input.dependencyIds || input.dependencies),
+    tags: normalizeArray(input.tags),
+    commentCount: 0,
+    activityCount: 1,
+    createdByUid: input.createdByUid || "",
+    createdByName: input.createdByName || input.ownerName || input.owner || "Unassigned",
+    updatedByUid: input.createdByUid || "",
+    updatedByName: input.createdByName || input.ownerName || input.owner || "Unassigned",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
-  requirements.push(newRequirement);
-  requirementActivity.unshift({
-    id: `a${requirementActivity.length + 1}`,
-    requirementId: newRequirement.id,
-    text: "Requirement created from the AI workbench.",
-    time: createRelativeTimeLabel()
+  await collection.doc(nextId).set(newRequirement);
+  await collection.doc(nextId).collection("activity").add({
+    type: "created",
+    text: "Requirement created from the workbench.",
+    actorName: newRequirement.createdByName,
+    actorUid: newRequirement.createdByUid,
+    createdAt: new Date().toISOString()
   });
 
   return {
-    ...cloneRequirement(newRequirement),
+    ...normalizeRequirement(nextId, newRequirement),
     comments: [],
-    activity: requirementActivity
-      .filter((item) => item.requirementId === newRequirement.id)
-      .map(cloneActivity)
+    activity: [
+      {
+        id: `activity-${Date.now()}`,
+        type: "created",
+        text: "Requirement created from the workbench.",
+        actorName: newRequirement.createdByName,
+        actorUid: newRequirement.createdByUid,
+        time: "Recently updated"
+      }
+    ]
   };
 }
 
 export async function addRequirementComment(id, input) {
-  const collection = await getFirestoreCollection();
-  const comment = {
-    id: `c${Date.now()}`,
-    requirementId: id,
-    author: input.author || "Anonymous User",
-    role: input.role || "Contributor",
-    message: input.message || "",
-    time: createRelativeTimeLabel()
-  };
-  const activityEntry = {
-    id: `a${Date.now() + 1}`,
-    requirementId: id,
-    text: `${comment.author} added a new discussion comment.`,
-    time: createRelativeTimeLabel()
-  };
+  const collection = await getCollection();
+  const document = await collection.doc(id).get();
 
-  if (collection) {
-    const document = await collection.doc(id).get();
-
-    if (!document.exists) {
-      return null;
-    }
-
-    const requirement = document.data();
-    const comments = [comment, ...(requirement.comments ?? [])];
-    const activity = [activityEntry, ...(requirement.activity ?? [])];
-
-    await collection.doc(id).update({
-      comments,
-      activity,
-      updatedAt: new Date().toISOString()
-    });
-
-    return comment;
-  }
-
-  const requirement = requirements.find((item) => item.id === id);
-
-  if (!requirement) {
+  if (!document.exists) {
     return null;
   }
 
-  requirementComments.unshift(comment);
-  requirementActivity.unshift(activityEntry);
+  const requirement = normalizeRequirement(document.id, document.data());
+  const comment = {
+    authorName: input.authorName || input.author || "Workspace User",
+    authorUid: input.authorUid || "",
+    authorRole: input.authorRole || input.role || "user",
+    message: input.message || "",
+    createdAt: new Date().toISOString()
+  };
 
-  return comment;
+  await document.ref.collection("comments").add(comment);
+  await document.ref.collection("activity").add({
+    type: "comment",
+    text: `${comment.authorName} added a new discussion comment.`,
+    actorName: comment.authorName,
+    actorUid: comment.authorUid,
+    createdAt: new Date().toISOString()
+  });
+  await document.ref.set(
+    {
+      commentCount: requirement.commentCount + 1,
+      activityCount: requirement.activityCount + 1,
+      updatedAt: new Date().toISOString(),
+      updatedByUid: comment.authorUid,
+      updatedByName: comment.authorName
+    },
+    { merge: true }
+  );
+
+  return normalizeComment(`comment-${Date.now()}`, comment);
 }
 
 export async function updateRequirement(id, input) {
-  const collection = await getFirestoreCollection();
-  const now = new Date().toISOString();
+  const collection = await getCollection();
+  const document = await collection.doc(id).get();
 
-  if (collection) {
-    const document = await collection.doc(id).get();
-
-    if (!document.exists) {
-      return null;
-    }
-
-    const existingRequirement = document.data();
-    const updatedRequirement = {
-      ...existingRequirement,
-      title: input.title || existingRequirement.title,
-      module: input.module || existingRequirement.module,
-      priority: input.priority || existingRequirement.priority,
-      status: input.status || existingRequirement.status,
-      owner: input.owner || existingRequirement.owner,
-      sprint: input.sprint || existingRequirement.sprint,
-      progress: Number.isFinite(Number(input.progress)) ? Number(input.progress) : existingRequirement.progress,
-      description: input.description || existingRequirement.description,
-      acceptanceCriteria: Array.isArray(input.acceptanceCriteria)
-        ? input.acceptanceCriteria.filter(Boolean)
-        : existingRequirement.acceptanceCriteria ?? [],
-      dependencies: Array.isArray(input.dependencies)
-        ? input.dependencies.filter(Boolean)
-        : existingRequirement.dependencies ?? [],
-      updatedAt: now
-    };
-
-    await collection.doc(id).set(updatedRequirement, { merge: true });
-
-    return {
-      ...updatedRequirement,
-      id
-    };
-  }
-
-  const index = requirements.findIndex((item) => item.id === id);
-
-  if (index === -1) {
+  if (!document.exists) {
     return null;
   }
 
-  requirements[index] = {
-    ...requirements[index],
-    title: input.title || requirements[index].title,
-    module: input.module || requirements[index].module,
-    priority: input.priority || requirements[index].priority,
-    status: input.status || requirements[index].status,
-    owner: input.owner || requirements[index].owner,
-    sprint: input.sprint || requirements[index].sprint,
-    progress: Number.isFinite(Number(input.progress)) ? Number(input.progress) : requirements[index].progress,
-    description: input.description || requirements[index].description,
+  const existingRequirement = normalizeRequirement(document.id, document.data());
+  const updatedRequirement = {
+    title: input.title || existingRequirement.title,
+    module: input.module || existingRequirement.module,
+    priority: input.priority || existingRequirement.priority,
+    status: input.status || existingRequirement.status,
+    ownerName: input.ownerName || input.owner || existingRequirement.ownerName,
+    ownerUid: input.ownerUid || existingRequirement.ownerUid,
+    sprint: input.sprint || existingRequirement.sprint,
+    progress: Number.isFinite(Number(input.progress)) ? Number(input.progress) : existingRequirement.progress,
+    description: input.description || existingRequirement.description,
     acceptanceCriteria: Array.isArray(input.acceptanceCriteria)
       ? input.acceptanceCriteria.filter(Boolean)
-      : requirements[index].acceptanceCriteria ?? [],
-    dependencies: Array.isArray(input.dependencies)
-      ? input.dependencies.filter(Boolean)
-      : requirements[index].dependencies ?? []
+      : existingRequirement.acceptanceCriteria,
+    dependencyIds: Array.isArray(input.dependencyIds || input.dependencies)
+      ? (input.dependencyIds || input.dependencies).filter(Boolean)
+      : existingRequirement.dependencyIds,
+    updatedByUid: input.updatedByUid || existingRequirement.updatedByUid || "",
+    updatedByName: input.updatedByName || existingRequirement.updatedByName || existingRequirement.ownerName,
+    updatedAt: new Date().toISOString()
   };
 
+  await document.ref.set(updatedRequirement, { merge: true });
+
   return {
-    ...cloneRequirement(requirements[index]),
-    comments: requirementComments
-      .filter((comment) => comment.requirementId === id)
-      .map(cloneComment),
-    activity: requirementActivity
-      .filter((item) => item.requirementId === id)
-      .map(cloneActivity)
+    ...existingRequirement,
+    ...updatedRequirement
   };
 }
 
 export async function deleteRequirement(id) {
-  const collection = await getFirestoreCollection();
+  const collection = await getCollection();
+  const document = await collection.doc(id).get();
 
-  if (collection) {
-    const document = await collection.doc(id).get();
-
-    if (!document.exists) {
-      return false;
-    }
-
-    await collection.doc(id).delete();
-    return true;
-  }
-
-  const index = requirements.findIndex((item) => item.id === id);
-
-  if (index === -1) {
+  if (!document.exists) {
     return false;
   }
 
-  requirements.splice(index, 1);
+  const [comments, activity] = await Promise.all([document.ref.collection("comments").get(), document.ref.collection("activity").get()]);
+  const batch = getFirestoreDb().batch();
 
-  for (let commentIndex = requirementComments.length - 1; commentIndex >= 0; commentIndex -= 1) {
-    if (requirementComments[commentIndex].requirementId === id) {
-      requirementComments.splice(commentIndex, 1);
-    }
-  }
-
-  for (let activityIndex = requirementActivity.length - 1; activityIndex >= 0; activityIndex -= 1) {
-    if (requirementActivity[activityIndex].requirementId === id) {
-      requirementActivity.splice(activityIndex, 1);
-    }
-  }
+  comments.docs.forEach((comment) => batch.delete(comment.ref));
+  activity.docs.forEach((entry) => batch.delete(entry.ref));
+  batch.delete(document.ref);
+  await batch.commit();
 
   return true;
 }

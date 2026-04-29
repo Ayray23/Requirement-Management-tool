@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
-import {
-  createRequirementCommentRecord,
-  deleteRequirementRecord,
-  getRequirementById,
-  updateRequirementRecord
-} from "../app/firestoreService";
+import { createRequirementCommentRecord, getRequirementById, updateRequirementRecord } from "../app/firestoreService";
+import { deleteRequirementCascadeAction } from "../app/services/adminService";
+import { canManageRequirements } from "../app/roles";
 import Button from "../components/ui/Button";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 import { Field, SelectInput, TextArea, TextInput } from "../components/ui/Field";
@@ -17,12 +14,12 @@ function buildFormState(source) {
     module: source?.module ?? "",
     priority: source?.priority ?? "Medium",
     status: source?.status ?? "Draft",
-    owner: source?.owner ?? "",
+    ownerName: source?.ownerName ?? source?.owner ?? "",
     sprint: source?.sprint ?? "",
     progress: String(source?.progress ?? 0),
     description: source?.description ?? "",
     acceptanceCriteria: (source?.acceptanceCriteria ?? []).join("\n"),
-    dependencies: (source?.dependencies ?? []).join("\n")
+    dependencyIds: (source?.dependencyIds ?? source?.dependencies ?? []).join("\n")
   };
 }
 
@@ -66,7 +63,7 @@ function RequirementDetailPage() {
 
     getRequirementById(requirementId)
       .then((data) => {
-        if (active) {
+        if (active && data) {
           setRequirement(data);
           setActivity(data.activity ?? []);
           setComments(data.comments ?? []);
@@ -113,12 +110,15 @@ function RequirementDetailPage() {
     try {
       const updatedRequirement = await updateRequirementRecord(requirementId, {
         ...editForm,
+        ownerUid: requirement?.ownerUid || "",
+        updatedByUid: session.user?.uid || "",
+        updatedByName: session.user?.name || "Workspace User",
         progress: Number(editForm.progress),
         acceptanceCriteria: editForm.acceptanceCriteria
           .split("\n")
           .map((item) => item.trim())
           .filter(Boolean),
-        dependencies: editForm.dependencies
+        dependencyIds: editForm.dependencyIds
           .split("\n")
           .map((item) => item.trim())
           .filter(Boolean)
@@ -158,7 +158,7 @@ function RequirementDetailPage() {
     });
 
     try {
-      await deleteRequirementRecord(requirementId);
+      await deleteRequirementCascadeAction(requirementId);
       navigate("/requirements");
     } catch (error) {
       setDeleteState({
@@ -186,8 +186,9 @@ function RequirementDetailPage() {
 
     try {
       const comment = await createRequirementCommentRecord(requirementId, {
-        author: session.user?.name || "Workspace User",
-        role: session.user?.role || "Contributor",
+        authorName: session.user?.name || "Workspace User",
+        authorUid: session.user?.uid || "",
+        authorRole: session.user?.role || "user",
         message: commentMessage.trim()
       });
 
@@ -243,9 +244,11 @@ function RequirementDetailPage() {
               <Button as={NavLink} to="/requirements" variant="secondary">
                 Back to requirements
               </Button>
-              <Button variant="ghost" onClick={() => setIsEditing((current) => !current)} type="button">
-                {isEditing ? "Close editor" : "Edit requirement"}
-              </Button>
+              {canManageRequirements(session.user?.role) ? (
+                <Button variant="ghost" onClick={() => setIsEditing((current) => !current)} type="button">
+                  {isEditing ? "Close editor" : "Edit requirement"}
+                </Button>
+              ) : null}
               <Button as={NavLink} to="/workbench">
                 Refine in workbench
               </Button>
@@ -279,7 +282,7 @@ function RequirementDetailPage() {
               <TextInput value={editForm.module} onChange={(event) => handleEditFieldChange("module", event.target.value)} />
             </Field>
             <Field label="Owner">
-              <TextInput value={editForm.owner} onChange={(event) => handleEditFieldChange("owner", event.target.value)} />
+              <TextInput value={editForm.ownerName} onChange={(event) => handleEditFieldChange("ownerName", event.target.value)} />
             </Field>
             <Field label="Priority">
               <SelectInput value={editForm.priority} onChange={(event) => handleEditFieldChange("priority", event.target.value)}>
@@ -323,8 +326,8 @@ function RequirementDetailPage() {
             </Field>
             <Field label="Dependencies (one per line)">
               <TextArea
-                value={editForm.dependencies}
-                onChange={(event) => handleEditFieldChange("dependencies", event.target.value)}
+                value={editForm.dependencyIds}
+                onChange={(event) => handleEditFieldChange("dependencyIds", event.target.value)}
                 className="min-h-[180px]"
               />
             </Field>
@@ -367,7 +370,7 @@ function RequirementDetailPage() {
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {[
               ["Module", requirement.module],
-              ["Owner", requirement.owner],
+              ["Owner", requirement.ownerName],
               ["Priority", requirement.priority],
               ["Status", requirement.status],
               ["Sprint", requirement.sprint],
@@ -384,7 +387,7 @@ function RequirementDetailPage() {
         <Card>
           <CardHeader eyebrow="Dependencies" title="What this requirement depends on" />
           <div className="mt-6 grid gap-3">
-            {requirement.dependencies.map((item) => (
+            {(requirement.dependencyIds ?? []).map((item) => (
               <InfoCard key={item} className="flex items-center gap-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" />
                 <p className="text-sm text-slate-200">{item}</p>
@@ -465,8 +468,8 @@ function RequirementDetailPage() {
                 <InfoCard key={comment.id}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-white">{comment.author}</p>
-                      <p className="text-xs text-slate-400">{comment.role}</p>
+                      <p className="font-semibold text-white">{comment.authorName}</p>
+                      <p className="text-xs text-slate-400">{comment.authorRole}</p>
                     </div>
                     <span className="text-xs text-slate-400">{comment.time}</span>
                   </div>

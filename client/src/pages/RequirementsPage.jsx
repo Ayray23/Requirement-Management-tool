@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listRequirements } from "../app/firestoreService";
+import { subscribeRequirements } from "../app/firestoreService";
 import DataStateBanner from "../components/DataStateBanner";
 import { Card, CardHeader } from "../components/ui/Card";
 import { SelectInput, TextInput } from "../components/ui/Field";
@@ -17,27 +17,23 @@ function RequirementsPage() {
   });
 
   useEffect(() => {
-    let active = true;
+    const unsubscribe = subscribeRequirements(
+      (data) => {
+        setRequirementsData(data);
+        setRequirementsState({
+          loading: false,
+          error: ""
+        });
+      },
+      () => {
+        setRequirementsState({
+          loading: false,
+          error: "Could not load requirements from Firebase right now."
+        });
+      }
+    );
 
-    listRequirements()
-      .then((data) => {
-        if (active && Array.isArray(data)) {
-          setRequirementsData(data);
-          setRequirementsState({ loading: false, error: "" });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setRequirementsState({
-            loading: false,
-            error: "Could not load requirements from Firebase right now."
-          });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
+    return unsubscribe;
   }, []);
 
   const summary = {
@@ -64,7 +60,7 @@ function RequirementsPage() {
         <CardHeader
           eyebrow="Requirements Repository"
           title="All requirements"
-          description="Table-style requirement management with search, status filter, and progress visibility."
+          description="Live Firestore requirement management with search, status filtering, and operational visibility."
         />
       </Card>
 
@@ -115,10 +111,7 @@ function RequirementsPage() {
           </TableHead>
           <TableBody>
             {filteredRequirements.map((requirement) => (
-              <TableRow
-                key={requirement.id}
-                className="cursor-pointer transition hover:bg-white/5"
-              >
+              <TableRow key={requirement.id} className="cursor-pointer transition hover:bg-white/5">
                 <Cell className="text-slate-400">{requirement.id}</Cell>
                 <Cell>
                   <button

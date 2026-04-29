@@ -1,5 +1,6 @@
 import { NavLink, Navigate, useLocation } from "react-router-dom";
-import { hasRequiredRole, useAuth } from "../app/AuthContext";
+import { useAuth } from "../app/AuthContext";
+import { hasRequiredRole } from "../app/roles";
 import { Card, CardHeader, InfoCard } from "./ui/Card";
 import Button from "./ui/Button";
 
@@ -21,7 +22,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
         <CardHeader
           eyebrow="Access Restricted"
           title="You do not have permission to open this page"
-          description="This area is limited to specific project roles so requirement governance stays controlled."
+          description="This area is limited to specific project roles so workspace governance stays controlled."
         />
         <InfoCard className="mt-6">
           <p className="text-sm text-slate-300">Signed in as {session.user?.name} ({session.user?.role}).</p>

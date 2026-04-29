@@ -44,18 +44,21 @@ function WorkbenchPage() {
     try {
       const createdRequirement = await createRequirementRecord({
         ...formData,
-        owner: session.user?.name || "Workspace User"
+        ownerName: session.user?.name || "Workspace User",
+        ownerUid: session.user?.uid || "",
+        createdByName: session.user?.name || "Workspace User",
+        createdByUid: session.user?.uid || ""
       });
 
       setSubmitState({
         status: "success",
-        message: `${createdRequirement.id} created successfully and assigned to ${createdRequirement.owner}.`
+        message: `${createdRequirement.id} created successfully and assigned to ${createdRequirement.ownerName}.`
       });
       setFormData(initialForm);
-    } catch {
+    } catch (error) {
       setSubmitState({
         status: "error",
-        message: "Could not create the requirement right now. Check the API and try again."
+        message: error.message || "Could not create the requirement right now."
       });
     }
   }
@@ -111,7 +114,7 @@ function WorkbenchPage() {
             <Sparkles />
           </div>
           <p className="text-sm leading-7 text-slate-200">
-            REQ-019 contains overlapping session management rules that may conflict with this requirement.
+            Review overlapping authentication and session requirements before approving new access-control scope.
           </p>
         </InfoCard>
 

@@ -1,32 +1,57 @@
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
 
 const REQUIREMENTS_COLLECTION = "requirements";
+const SYSTEM_COLLECTION = "system";
+const PAGE_SIZE = 50;
 
 function ensureDb() {
   if (!db) {
-    throw new Error("Firebase database is not configured for this environment.");
+    throw new Error("Firebase is not configured for this environment.");
   }
-}
-
-function createRelativeTimeLabel() {
-  return "Just now";
 }
 
 function normalizeArray(values) {
   return Array.isArray(values) ? values.filter(Boolean) : [];
+}
+
+function createRelativeTimeLabel(dateLike) {
+  if (!dateLike) {
+    return "Recently updated";
+  }
+
+  const date = dateLike?.toDate ? dateLike.toDate() : new Date(dateLike);
+  const diffMinutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function normalizeRequirement(id, data = {}) {
@@ -36,16 +61,46 @@ function normalizeRequirement(id, data = {}) {
     module: data.module || "General",
     priority: data.priority || "Medium",
     status: data.status || "Draft",
-    owner: data.owner || "Unassigned",
+    ownerName: data.ownerName || data.owner || "Unassigned",
+    ownerUid: data.ownerUid || "",
     sprint: data.sprint || "Backlog",
     progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : 0,
     description: data.description || "",
     acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
-    dependencies: normalizeArray(data.dependencies),
-    comments: normalizeArray(data.comments),
-    activity: normalizeArray(data.activity),
+    dependencyIds: normalizeArray(data.dependencyIds || data.dependencies),
+    tags: normalizeArray(data.tags),
+    commentCount: Number.isFinite(Number(data.commentCount)) ? Number(data.commentCount) : normalizeArray(data.comments).length,
+    activityCount: Number.isFinite(Number(data.activityCount)) ? Number(data.activityCount) : normalizeArray(data.activity).length,
+    createdByUid: data.createdByUid || "",
+    createdByName: data.createdByName || "",
+    updatedByUid: data.updatedByUid || "",
+    updatedByName: data.updatedByName || "",
     createdAt: data.createdAt || null,
     updatedAt: data.updatedAt || null
+  };
+}
+
+function normalizeComment(id, data = {}) {
+  return {
+    id,
+    authorName: data.authorName || data.author || "Workspace User",
+    authorUid: data.authorUid || "",
+    authorRole: data.authorRole || data.role || "user",
+    message: data.message || "",
+    createdAt: data.createdAt || null,
+    time: createRelativeTimeLabel(data.createdAt)
+  };
+}
+
+function normalizeActivity(id, data = {}) {
+  return {
+    id,
+    type: data.type || "update",
+    text: data.text || "Requirement updated.",
+    actorName: data.actorName || "",
+    actorUid: data.actorUid || "",
+    createdAt: data.createdAt || null,
+    time: createRelativeTimeLabel(data.createdAt)
   };
 }
 
@@ -56,10 +111,11 @@ function toRequirementSummary(requirement) {
     module: requirement.module,
     priority: requirement.priority,
     status: requirement.status,
-    owner: requirement.owner,
+    owner: requirement.ownerName,
     sprint: requirement.sprint,
     progress: requirement.progress,
-    description: requirement.description
+    description: requirement.description,
+    commentCount: requirement.commentCount
   };
 }
 
@@ -134,23 +190,19 @@ function buildBurndownTrend(requirements) {
 
 function buildCollaborationThreads(requirements) {
   return requirements
-    .filter((requirement) => (requirement.comments?.length ?? 0) > 0 || requirement.status === "Blocked" || requirement.status === "In Review")
+    .filter((requirement) => requirement.commentCount > 0 || requirement.status === "Blocked" || requirement.status === "In Review")
     .slice()
-    .sort((left, right) => (right.comments?.length ?? 0) - (left.comments?.length ?? 0))
+    .sort((left, right) => right.commentCount - left.commentCount)
     .slice(0, 6)
     .map((requirement) => ({
       id: `thread-${requirement.id}`,
       title: requirement.title,
       tag: requirement.id,
-      participants: new Set((requirement.comments ?? []).map((comment) => comment.author)).size || 1,
-      owner: requirement.owner,
+      participants: Math.max(1, requirement.commentCount),
+      owner: requirement.ownerName,
       status: requirement.status,
-      updatedAt: requirement.comments?.[0]?.time || requirement.activity?.[0]?.time || "Recently updated",
-      excerpt:
-        requirement.comments?.[0]?.message ||
-        requirement.activity?.[0]?.text ||
-        requirement.description ||
-        "This requirement is waiting for team discussion."
+      updatedAt: createRelativeTimeLabel(requirement.updatedAt),
+      excerpt: requirement.description || "This requirement is waiting for team discussion."
     }));
 }
 
@@ -158,7 +210,7 @@ function buildCollaborationMembers(requirements) {
   const owners = new Map();
 
   requirements.forEach((requirement) => {
-    const owner = requirement.owner || "Unassigned";
+    const owner = requirement.ownerName || "Unassigned";
     owners.set(owner, (owners.get(owner) ?? 0) + 1);
   });
 
@@ -169,33 +221,61 @@ function buildCollaborationMembers(requirements) {
   }));
 }
 
-function buildActivityFeed(requirements) {
-  return requirements
-    .flatMap((requirement) => (requirement.activity ?? []).map((item) => ({ ...item, requirementId: requirement.id })))
-    .slice(0, 10);
+function buildActivityFeed(activityItems) {
+  return activityItems.slice(0, 10);
+}
+
+async function getNextRequirementId() {
+  ensureDb();
+  const counterRef = doc(db, SYSTEM_COLLECTION, "counters");
+
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(counterRef);
+    const currentValue = snapshot.exists() ? Number(snapshot.data().requirementCounter || 0) : 0;
+    const nextValue = currentValue + 1;
+
+    transaction.set(counterRef, { requirementCounter: nextValue, updatedAt: serverTimestamp() }, { merge: true });
+    return `REQ-${String(nextValue).padStart(3, "0")}`;
+  });
+}
+
+async function getRequirementActivity(requirementId) {
+  ensureDb();
+  const activityQuery = query(
+    collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity"),
+    orderBy("createdAt", "desc"),
+    limit(12)
+  );
+  const snapshot = await getDocs(activityQuery);
+  return snapshot.docs.map((document) => normalizeActivity(document.id, document.data()));
+}
+
+async function getRequirementComments(requirementId) {
+  ensureDb();
+  const commentsQuery = query(
+    collection(db, REQUIREMENTS_COLLECTION, requirementId, "comments"),
+    orderBy("createdAt", "desc"),
+    limit(20)
+  );
+  const snapshot = await getDocs(commentsQuery);
+  return snapshot.docs.map((document) => normalizeComment(document.id, document.data()));
 }
 
 async function listRequirementDocs() {
   ensureDb();
-  const requirementsQuery = query(collection(db, REQUIREMENTS_COLLECTION), orderBy("updatedAt", "desc"));
+  const requirementsQuery = query(collection(db, REQUIREMENTS_COLLECTION), orderBy("updatedAt", "desc"), limit(PAGE_SIZE));
   const snapshot = await getDocs(requirementsQuery);
-
   return snapshot.docs.map((document) => normalizeRequirement(document.id, document.data()));
-}
-
-async function getNextRequirementId() {
-  const requirements = await listRequirementDocs();
-  return `REQ-${String(requirements.length + 1).padStart(3, "0")}`;
 }
 
 export function subscribeRequirements(callback, onError) {
   ensureDb();
-  const requirementsQuery = query(collection(db, REQUIREMENTS_COLLECTION), orderBy("updatedAt", "desc"));
+  const requirementsQuery = query(collection(db, REQUIREMENTS_COLLECTION), orderBy("updatedAt", "desc"), limit(PAGE_SIZE));
 
   return onSnapshot(
     requirementsQuery,
     (snapshot) => {
-      callback(snapshot.docs.map((document) => normalizeRequirement(document.id, document.data())));
+      callback(snapshot.docs.map((document) => toRequirementSummary(normalizeRequirement(document.id, document.data()))));
     },
     onError
   );
@@ -215,67 +295,110 @@ export async function getRequirementById(requirementId) {
     return null;
   }
 
-  return normalizeRequirement(documentSnap.id, documentSnap.data());
+  const requirement = normalizeRequirement(documentSnap.id, documentSnap.data());
+  const [comments, activity] = await Promise.all([getRequirementComments(requirementId), getRequirementActivity(requirementId)]);
+
+  return {
+    ...requirement,
+    comments: comments.length > 0 ? comments : normalizeArray(documentSnap.data().comments).map((item, index) => normalizeComment(`legacy-comment-${index}`, item)),
+    activity: activity.length > 0 ? activity : normalizeArray(documentSnap.data().activity).map((item, index) => normalizeActivity(`legacy-activity-${index}`, item)),
+    dependencies: requirement.dependencyIds
+  };
 }
 
 export async function createRequirementRecord(data) {
   ensureDb();
   const id = await getNextRequirementId();
-  const now = serverTimestamp();
-  const newRequirement = {
-    title: data.title || "Untitled Requirement",
-    module: data.module || "General",
-    priority: data.priority || "Medium",
-    status: "Draft",
-    owner: data.owner || "Unassigned",
-    sprint: data.sprint || "Backlog",
-    progress: 0,
-    description: data.description || "",
-    acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
-    dependencies: normalizeArray(data.dependencies),
-    comments: [],
-    activity: [
-      {
-        id: `a-${Date.now()}`,
-        text: "Requirement created from the AI workbench.",
-        time: createRelativeTimeLabel()
-      }
-    ],
-    createdAt: now,
-    updatedAt: now
-  };
+  const requirementRef = doc(db, REQUIREMENTS_COLLECTION, id);
+  const activityRef = collection(db, REQUIREMENTS_COLLECTION, id, "activity");
+  const ownerName = data.ownerName || data.owner || "Unassigned";
+  const ownerUid = data.ownerUid || "";
+  const createdByName = data.createdByName || ownerName;
+  const createdByUid = data.createdByUid || ownerUid;
 
-  await setDoc(doc(db, REQUIREMENTS_COLLECTION, id), newRequirement);
-  return normalizeRequirement(id, newRequirement);
+  await runTransaction(db, async (transaction) => {
+    transaction.set(requirementRef, {
+      title: data.title || "Untitled Requirement",
+      module: data.module || "General",
+      priority: data.priority || "Medium",
+      status: "Draft",
+      ownerName,
+      ownerUid,
+      sprint: data.sprint || "Backlog",
+      progress: 0,
+      description: data.description || "",
+      acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
+      dependencyIds: normalizeArray(data.dependencyIds || data.dependencies),
+      tags: normalizeArray(data.tags),
+      commentCount: 0,
+      activityCount: 1,
+      createdByUid,
+      createdByName,
+      updatedByUid: createdByUid,
+      updatedByName: createdByName,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    const initialActivityRef = doc(activityRef);
+    transaction.set(initialActivityRef, {
+      type: "created",
+      text: "Requirement created from the workbench.",
+      actorName: createdByName,
+      actorUid: createdByUid,
+      createdAt: serverTimestamp()
+    });
+  });
+
+  return getRequirementById(id);
 }
 
 export async function updateRequirementRecord(requirementId, data) {
   ensureDb();
-  const currentRequirement = await getRequirementById(requirementId);
+  const requirementRef = doc(db, REQUIREMENTS_COLLECTION, requirementId);
+  const activityRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity");
+  const requirementSnapshot = await getDoc(requirementRef);
 
-  if (!currentRequirement) {
+  if (!requirementSnapshot.exists()) {
     throw new Error("Requirement not found.");
   }
 
+  const currentRequirement = normalizeRequirement(requirementSnapshot.id, requirementSnapshot.data());
   const updates = {
     title: data.title || currentRequirement.title,
     module: data.module || currentRequirement.module,
     priority: data.priority || currentRequirement.priority,
     status: data.status || currentRequirement.status,
-    owner: data.owner || currentRequirement.owner,
+    ownerName: data.ownerName || data.owner || currentRequirement.ownerName,
+    ownerUid: data.ownerUid || currentRequirement.ownerUid,
     sprint: data.sprint || currentRequirement.sprint,
     progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : currentRequirement.progress,
     description: data.description || currentRequirement.description,
     acceptanceCriteria: normalizeArray(data.acceptanceCriteria).length > 0 ? normalizeArray(data.acceptanceCriteria) : currentRequirement.acceptanceCriteria,
-    dependencies: normalizeArray(data.dependencies).length > 0 ? normalizeArray(data.dependencies) : currentRequirement.dependencies,
+    dependencyIds: normalizeArray(data.dependencyIds || data.dependencies).length > 0
+      ? normalizeArray(data.dependencyIds || data.dependencies)
+      : currentRequirement.dependencyIds,
+    tags: normalizeArray(data.tags).length > 0 ? normalizeArray(data.tags) : currentRequirement.tags,
+    updatedByUid: data.updatedByUid || currentRequirement.updatedByUid,
+    updatedByName: data.updatedByName || currentRequirement.updatedByName,
     updatedAt: serverTimestamp()
   };
 
-  await updateDoc(doc(db, REQUIREMENTS_COLLECTION, requirementId), updates);
-  return {
-    ...currentRequirement,
-    ...updates
-  };
+  await runTransaction(db, async (transaction) => {
+    transaction.update(requirementRef, updates);
+    transaction.set(doc(activityRef), {
+      type: "updated",
+      text: "Requirement details were updated.",
+      actorName: updates.updatedByName,
+      actorUid: updates.updatedByUid,
+      createdAt: serverTimestamp()
+    });
+    transaction.update(requirementRef, {
+      activityCount: currentRequirement.activityCount + 1
+    });
+  });
+
+  return getRequirementById(requirementId);
 }
 
 export async function deleteRequirementRecord(requirementId) {
@@ -285,32 +408,49 @@ export async function deleteRequirementRecord(requirementId) {
 
 export async function createRequirementCommentRecord(requirementId, data) {
   ensureDb();
-  const currentRequirement = await getRequirementById(requirementId);
+  const requirementRef = doc(db, REQUIREMENTS_COLLECTION, requirementId);
+  const commentsRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "comments");
+  const activityRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity");
+  const requirementSnapshot = await getDoc(requirementRef);
 
-  if (!currentRequirement) {
+  if (!requirementSnapshot.exists()) {
     throw new Error("Requirement not found.");
   }
 
-  const comment = {
-    id: `c-${Date.now()}`,
-    author: data.author || "Anonymous User",
-    role: data.role || "Contributor",
+  const requirement = normalizeRequirement(requirementSnapshot.id, requirementSnapshot.data());
+  const commentData = {
+    authorName: data.authorName || data.author || "Workspace User",
+    authorUid: data.authorUid || "",
+    authorRole: data.authorRole || data.role || "user",
     message: data.message || "",
-    time: createRelativeTimeLabel()
-  };
-  const activityEntry = {
-    id: `a-${Date.now()}`,
-    text: `${comment.author} added a new discussion comment.`,
-    time: createRelativeTimeLabel()
+    createdAt: serverTimestamp()
   };
 
-  await updateDoc(doc(db, REQUIREMENTS_COLLECTION, requirementId), {
-    comments: [comment, ...(currentRequirement.comments ?? [])],
-    activity: [activityEntry, ...(currentRequirement.activity ?? [])],
-    updatedAt: serverTimestamp()
+  const commentId = await runTransaction(db, async (transaction) => {
+    const newCommentRef = doc(commentsRef);
+    const newActivityRef = doc(activityRef);
+
+    transaction.set(newCommentRef, commentData);
+    transaction.set(newActivityRef, {
+      type: "comment",
+      text: `${commentData.authorName} added a new discussion comment.`,
+      actorName: commentData.authorName,
+      actorUid: commentData.authorUid,
+      createdAt: serverTimestamp()
+    });
+    transaction.update(requirementRef, {
+      commentCount: requirement.commentCount + 1,
+      activityCount: requirement.activityCount + 1,
+      updatedAt: serverTimestamp(),
+      updatedByUid: commentData.authorUid,
+      updatedByName: commentData.authorName
+    });
+
+    return newCommentRef.id;
   });
 
-  return comment;
+  const savedComment = await getDoc(doc(db, REQUIREMENTS_COLLECTION, requirementId, "comments", commentId));
+  return normalizeComment(savedComment.id, savedComment.data());
 }
 
 export async function getDashboardMetrics() {
@@ -379,10 +519,19 @@ export async function getAnalyticsMetrics() {
 
 export async function getCollaborationMetrics() {
   const requirements = await listRequirementDocs();
+  const activityCollections = await Promise.all(
+    requirements.slice(0, 10).map(async (requirement) => {
+      const items = await getRequirementActivity(requirement.id);
+      return items.map((item) => ({
+        ...item,
+        requirementId: requirement.id
+      }));
+    })
+  );
 
   return {
     threads: buildCollaborationThreads(requirements),
     members: buildCollaborationMembers(requirements),
-    activity: buildActivityFeed(requirements)
+    activity: buildActivityFeed(activityCollections.flat())
   };
 }

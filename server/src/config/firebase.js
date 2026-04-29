@@ -3,16 +3,21 @@ import admin from "firebase-admin";
 let firebaseApp = null;
 let firestoreDb = null;
 
+export function isFirebaseConfigured() {
+  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
+  return Boolean(FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY);
+}
+
 export function initializeFirebase() {
   if (firebaseApp) {
     return firebaseApp;
   }
 
-  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-
-  if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
+  if (!isFirebaseConfigured()) {
     return null;
   }
+
+  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
 
   firebaseApp = admin.initializeApp({
     credential: admin.credential.cert({
@@ -29,7 +34,7 @@ export function getFirestoreDb() {
   const app = initializeFirebase();
 
   if (!app) {
-    return null;
+    throw new Error("Firebase Admin is not configured for this environment.");
   }
 
   if (!firestoreDb) {

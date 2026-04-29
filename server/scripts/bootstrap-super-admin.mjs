@@ -3,36 +3,38 @@ import { getAdminAuth, getFirestoreDb, initializeFirebase } from "../src/config/
 
 dotenv.config();
 
-const email = process.argv[2];
+(async () => {
+  const email = process.argv[2];
 
-if (!email) {
-  console.error("Usage: npm run bootstrap:super-admin --workspace server -- user@example.com");
-  process.exit(1);
-}
+  if (!email) {
+    console.error("Usage: npm run bootstrap:super-admin --workspace server -- user@example.com");
+    process.exit(1);
+  }
 
-initializeFirebase();
+  initializeFirebase();
 
-const auth = getAdminAuth();
-const db = getFirestoreDb();
-const userRecord = await auth.getUserByEmail(email);
+  const auth = getAdminAuth();
+  const db = getFirestoreDb();
+  const userRecord = await auth.getUserByEmail(email);
 
-await auth.setCustomUserClaims(userRecord.uid, {
-  ...(userRecord.customClaims || {}),
-  role: "super-admin",
-  status: "active"
-});
-
-await db.collection("users").doc(userRecord.uid).set(
-  {
-    email: userRecord.email || email,
-    displayName: userRecord.displayName || email.split("@")[0],
-    photoURL: userRecord.photoURL || "",
+  await auth.setCustomUserClaims(userRecord.uid, {
+    ...(userRecord.customClaims || {}),
     role: "super-admin",
-    status: "active",
-    updatedAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString()
-  },
-  { merge: true }
-);
+    status: "active"
+  });
 
-console.log(`Promoted ${email} to super-admin.`);
+  await db.collection("users").doc(userRecord.uid).set(
+    {
+      email: userRecord.email || email,
+      displayName: userRecord.displayName || email.split("@")[0],
+      photoURL: userRecord.photoURL || "",
+      role: "super-admin",
+      status: "active",
+      updatedAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    },
+    { merge: true }
+  );
+
+  console.log(`Promoted ${email} to super-admin.`);
+})();

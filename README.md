@@ -130,6 +130,16 @@ Key callable functions:
 - `setUserStatus`
 - `deleteRequirementCascade`
 
+## Bootstrap The First Super Admin
+
+Every new Firebase project starts with standard users only. After your first account signs up, promote it once with:
+
+```powershell
+npm.cmd run bootstrap:super-admin --workspace server -- your-email@example.com
+```
+
+After that, sign out and sign back in so the refreshed custom claims are loaded into the app session.
+
 ## RBAC Model
 
 - `user`

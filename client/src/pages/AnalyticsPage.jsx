@@ -8,7 +8,9 @@ function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState({
     cards: [],
     trend: [],
-    distribution: []
+    distribution: [],
+    typeDistribution: [],
+    priorityDistribution: []
   });
   const [analyticsState, setAnalyticsState] = useState({
     loading: true,
@@ -24,7 +26,9 @@ function AnalyticsPage() {
           setAnalyticsData({
             cards: data.cards ?? [],
             trend: data.trend ?? [],
-            distribution: data.distribution ?? []
+            distribution: data.distribution ?? [],
+            typeDistribution: data.typeDistribution ?? [],
+            priorityDistribution: data.priorityDistribution ?? []
           });
           setAnalyticsState({ loading: false, error: "" });
         }
@@ -49,7 +53,7 @@ function AnalyticsPage() {
         <CardHeader
           eyebrow="Analytics & Reports"
           title="Sprint 7 performance intelligence"
-          description="Visualize module distribution, burndown trends, and outcome quality in one analytics suite."
+          description="Visualize project distribution, requirement types, priority spread, and workflow trends in one analytics suite."
         />
       </Card>
 
@@ -82,7 +86,7 @@ function AnalyticsPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Requirements by module" />
+          <CardHeader title="Requirements by project" />
           <div className="mt-6 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analyticsData.distribution}>
@@ -91,6 +95,38 @@ function AnalyticsPage() {
                 <YAxis stroke="#8b9cc0" />
                 <Tooltip />
                 <Bar dataKey="count" fill="#7c3aed" radius={[10, 10, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-2">
+        <Card>
+          <CardHeader title="Requirement types" />
+          <div className="mt-6 h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analyticsData.typeDistribution}>
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                <XAxis dataKey="name" stroke="#8b9cc0" />
+                <YAxis stroke="#8b9cc0" />
+                <Tooltip />
+                <Bar dataKey="count" fill="#22d3ee" radius={[10, 10, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Priority distribution" />
+          <div className="mt-6 h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analyticsData.priorityDistribution}>
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                <XAxis dataKey="name" stroke="#8b9cc0" />
+                <YAxis stroke="#8b9cc0" />
+                <Tooltip />
+                <Bar dataKey="count" fill="#f97316" radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

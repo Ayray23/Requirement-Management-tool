@@ -45,7 +45,8 @@ function DashboardPage() {
               activeSprint: "Sprint 7",
               completionRate: 0,
               ambiguityAlerts: 0,
-              stakeholderSatisfaction: 0
+              stakeholderSatisfaction: 0,
+              portfolioSummary: ""
             },
             kpis: data.kpis ?? [],
             timeline: data.timeline ?? [],
@@ -95,7 +96,7 @@ function DashboardPage() {
         <CardHeader
           eyebrow="Executive Dashboard"
           title="Build a requirement platform that looks production-ready."
-          description="The dashboard combines sprint health, requirement throughput, and AI-assisted delivery insights in one view."
+          description="The dashboard combines workflow status, requirement quality, and AI-assisted delivery insights in one view."
           actions={
             <>
               <Button type="button" variant="secondary" onClick={handleExportReport}>
@@ -151,6 +152,11 @@ function DashboardPage() {
           </Card>
         ))}
       </section>
+
+      <Card className="p-5">
+        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Portfolio summary</p>
+        <p className="mt-3 text-sm leading-7 text-slate-300">{dashboardData.summary.portfolioSummary}</p>
+      </Card>
 
       <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>

@@ -5,9 +5,9 @@ export const ROLE_ORDER = {
 };
 
 export const ROLE_LABELS = {
-  user: "User",
-  admin: "Admin",
-  "super-admin": "Super Admin"
+  user: "Stakeholder",
+  admin: "Analyst",
+  "super-admin": "Admin"
 };
 
 export const USER_STATUS_LABELS = {

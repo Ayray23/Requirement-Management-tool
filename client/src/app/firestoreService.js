@@ -11,17 +11,27 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "./firebase";
+import { analyzeRequirementDraft, summarizeRequirementPortfolio } from "./smartAnalysis";
 
 const REQUIREMENTS_COLLECTION = "requirements";
 const SYSTEM_COLLECTION = "system";
+const NOTIFICATIONS_COLLECTION = "notifications";
 const PAGE_SIZE = 50;
 
 function ensureDb() {
   if (!db) {
     throw new Error("Firebase is not configured for this environment.");
+  }
+}
+
+function ensureFunctions() {
+  if (!functions) {
+    throw new Error("Firebase Functions is not configured for this environment.");
   }
 }
 
@@ -54,23 +64,89 @@ function createRelativeTimeLabel(dateLike) {
   return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
+function normalizeApproval(item = {}, index = 0) {
+  return {
+    id: item.id || `approval-${index}`,
+    decision: item.decision || "Pending",
+    actorName: item.actorName || "Workspace User",
+    actorUid: item.actorUid || "",
+    actorRole: item.actorRole || "stakeholder",
+    comment: item.comment || "",
+    createdAt: item.createdAt || null,
+    time: createRelativeTimeLabel(item.createdAt)
+  };
+}
+
+function normalizeAnalysis(data = {}) {
+  return {
+    typeSuggestion: data.typeSuggestion || "",
+    prioritySuggestion: data.prioritySuggestion || "",
+    summary: data.summary || "",
+    rewrittenRequirement: data.rewrittenRequirement || "",
+    clarity: {
+      isClear: Boolean(data.clarity?.isClear),
+      vagueTerms: normalizeArray(data.clarity?.vagueTerms),
+      suggestions: normalizeArray(data.clarity?.suggestions)
+    },
+    duplicateCandidates: normalizeArray(data.duplicateCandidates),
+    conflictCandidates: normalizeArray(data.conflictCandidates)
+  };
+}
+
+function normalizeVersion(id, data = {}) {
+  return {
+    id,
+    title: data.title || "Requirement snapshot",
+    status: data.status || "Pending",
+    priority: data.priority || "Medium",
+    editorName: data.editorName || "Workspace User",
+    editorUid: data.editorUid || "",
+    changeNote: data.changeNote || "Requirement updated.",
+    createdAt: data.createdAt || null,
+    time: createRelativeTimeLabel(data.createdAt)
+  };
+}
+
+function normalizeNotification(id, data = {}) {
+  return {
+    id,
+    type: data.type || "update",
+    title: data.title || "Requirement update",
+    message: data.message || "",
+    requirementId: data.requirementId || "",
+    recipientUid: data.recipientUid || "",
+    read: Boolean(data.read),
+    createdAt: data.createdAt || null,
+    time: createRelativeTimeLabel(data.createdAt)
+  };
+}
+
 function normalizeRequirement(id, data = {}) {
+  const analysis = normalizeAnalysis(data.analysis);
+
   return {
     id,
     title: data.title || "Untitled Requirement",
+    description: data.description || "",
+    type: data.type || analysis.typeSuggestion || "Functional",
+    priority: data.priority || analysis.prioritySuggestion || "Medium",
+    status: data.status || "Pending",
+    stakeholder: data.stakeholder || data.ownerName || data.owner || "Unassigned",
+    stakeholderUid: data.stakeholderUid || data.ownerUid || "",
+    ownerName: data.ownerName || data.owner || data.stakeholder || "Unassigned",
+    ownerUid: data.ownerUid || data.stakeholderUid || "",
+    project: data.project || "Core Platform",
     module: data.module || "General",
-    priority: data.priority || "Medium",
-    status: data.status || "Draft",
-    ownerName: data.ownerName || data.owner || "Unassigned",
-    ownerUid: data.ownerUid || "",
     sprint: data.sprint || "Backlog",
     progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : 0,
-    description: data.description || "",
     acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
     dependencyIds: normalizeArray(data.dependencyIds || data.dependencies),
     tags: normalizeArray(data.tags),
-    commentCount: Number.isFinite(Number(data.commentCount)) ? Number(data.commentCount) : normalizeArray(data.comments).length,
-    activityCount: Number.isFinite(Number(data.activityCount)) ? Number(data.activityCount) : normalizeArray(data.activity).length,
+    approvals: normalizeArray(data.approvals).map(normalizeApproval),
+    analysis,
+    commentCount: Number.isFinite(Number(data.commentCount)) ? Number(data.commentCount) : 0,
+    activityCount: Number.isFinite(Number(data.activityCount)) ? Number(data.activityCount) : 0,
+    versionCount: Number.isFinite(Number(data.versionCount)) ? Number(data.versionCount) : 1,
     createdByUid: data.createdByUid || "",
     createdByName: data.createdByName || "",
     updatedByUid: data.updatedByUid || "",
@@ -85,7 +161,7 @@ function normalizeComment(id, data = {}) {
     id,
     authorName: data.authorName || data.author || "Workspace User",
     authorUid: data.authorUid || "",
-    authorRole: data.authorRole || data.role || "user",
+    authorRole: data.authorRole || data.role || "stakeholder",
     message: data.message || "",
     createdAt: data.createdAt || null,
     time: createRelativeTimeLabel(data.createdAt)
@@ -108,35 +184,26 @@ function toRequirementSummary(requirement) {
   return {
     id: requirement.id,
     title: requirement.title,
-    module: requirement.module,
+    description: requirement.description,
+    type: requirement.type,
     priority: requirement.priority,
     status: requirement.status,
+    stakeholder: requirement.stakeholder,
     owner: requirement.ownerName,
+    project: requirement.project,
+    module: requirement.module,
     sprint: requirement.sprint,
     progress: requirement.progress,
-    description: requirement.description,
-    commentCount: requirement.commentCount
+    commentCount: requirement.commentCount,
+    versionCount: requirement.versionCount,
+    createdAt: requirement.createdAt,
+    updatedAt: requirement.updatedAt,
+    analysis: requirement.analysis
   };
 }
 
-function countByStatus(requirements, statuses) {
-  return statuses.map((status) => ({
-    label: status,
-    value: requirements.filter((requirement) => requirement.status === status).length
-  }));
-}
-
-function groupByModule(requirements) {
-  const counts = new Map();
-
-  requirements.forEach((requirement) => {
-    const key = requirement.module || "General";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  });
-
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((left, right) => right.count - left.count);
+function priorityWeight(priority) {
+  return { High: 3, Medium: 2, Low: 1 }[priority] ?? 0;
 }
 
 function averageProgress(requirements) {
@@ -147,26 +214,24 @@ function averageProgress(requirements) {
   return Math.round(requirements.reduce((sum, item) => sum + Number(item.progress || 0), 0) / requirements.length);
 }
 
-function buildInsights(requirements) {
-  const completed = requirements.filter((requirement) => requirement.status === "Completed").length;
-  const blocked = requirements.filter((requirement) => requirement.status === "Blocked").length;
-  const critical = requirements.filter((requirement) => requirement.priority === "Critical").length;
-
-  return [
-    `${completed} requirement${completed === 1 ? "" : "s"} have been completed so far.`,
-    blocked > 0
-      ? `${blocked} requirement${blocked === 1 ? "" : "s"} are currently blocked and need immediate attention.`
-      : "No requirements are currently blocked.",
-    `${critical} critical requirement${critical === 1 ? "" : "s"} still need close delivery tracking.`
-  ];
+function countByStatus(requirements, statuses) {
+  return statuses.map((status) => ({
+    label: status,
+    value: requirements.filter((requirement) => requirement.status === status).length
+  }));
 }
 
-function buildTimeline(requirements) {
-  return requirements
-    .slice()
-    .sort((left, right) => Number(right.progress || 0) - Number(left.progress || 0))
-    .slice(0, 5)
-    .map((requirement) => `${requirement.id} is ${requirement.status.toLowerCase()} at ${requirement.progress}% progress in ${requirement.sprint}.`);
+function groupByField(requirements, field) {
+  const counts = new Map();
+
+  requirements.forEach((requirement) => {
+    const key = requirement[field] || "Unassigned";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => right.count - left.count);
 }
 
 function buildBurndownTrend(requirements) {
@@ -188,41 +253,18 @@ function buildBurndownTrend(requirements) {
   });
 }
 
-function buildCollaborationThreads(requirements) {
-  return requirements
-    .filter((requirement) => requirement.commentCount > 0 || requirement.status === "Blocked" || requirement.status === "In Review")
-    .slice()
-    .sort((left, right) => right.commentCount - left.commentCount)
-    .slice(0, 6)
-    .map((requirement) => ({
-      id: `thread-${requirement.id}`,
-      title: requirement.title,
-      tag: requirement.id,
-      participants: Math.max(1, requirement.commentCount),
-      owner: requirement.ownerName,
-      status: requirement.status,
-      updatedAt: createRelativeTimeLabel(requirement.updatedAt),
-      excerpt: requirement.description || "This requirement is waiting for team discussion."
-    }));
-}
+function buildInsights(requirements) {
+  const approved = requirements.filter((requirement) => requirement.status === "Approved").length;
+  const pending = requirements.filter((requirement) => requirement.status === "Pending").length;
+  const vague = requirements.filter((requirement) => !requirement.analysis.clarity.isClear).length;
+  const duplicates = requirements.filter((requirement) => requirement.analysis.duplicateCandidates.length > 0).length;
 
-function buildCollaborationMembers(requirements) {
-  const owners = new Map();
-
-  requirements.forEach((requirement) => {
-    const owner = requirement.ownerName || "Unassigned";
-    owners.set(owner, (owners.get(owner) ?? 0) + 1);
-  });
-
-  return [...owners.entries()].map(([name, count]) => ({
-    name,
-    role: "Contributor",
-    focus: `${count} assigned requirement${count === 1 ? "" : "s"}`
-  }));
-}
-
-function buildActivityFeed(activityItems) {
-  return activityItems.slice(0, 10);
+  return [
+    `${approved} requirement${approved === 1 ? "" : "s"} have already been approved.`,
+    pending > 0 ? `${pending} requirement${pending === 1 ? "" : "s"} are still waiting for workflow decisions.` : "No requirements are waiting for approval.",
+    vague > 0 ? `${vague} requirement${vague === 1 ? "" : "s"} contain clarity warnings that should be refined.` : "No ambiguity alerts were detected in the current set.",
+    duplicates > 0 ? `${duplicates} requirement${duplicates === 1 ? "" : "s"} look similar to existing records and need duplicate review.` : "No obvious duplicates were detected."
+  ];
 }
 
 async function getNextRequirementId() {
@@ -241,24 +283,23 @@ async function getNextRequirementId() {
 
 async function getRequirementActivity(requirementId) {
   ensureDb();
-  const activityQuery = query(
-    collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity"),
-    orderBy("createdAt", "desc"),
-    limit(12)
-  );
+  const activityQuery = query(collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity"), orderBy("createdAt", "desc"), limit(20));
   const snapshot = await getDocs(activityQuery);
   return snapshot.docs.map((document) => normalizeActivity(document.id, document.data()));
 }
 
 async function getRequirementComments(requirementId) {
   ensureDb();
-  const commentsQuery = query(
-    collection(db, REQUIREMENTS_COLLECTION, requirementId, "comments"),
-    orderBy("createdAt", "desc"),
-    limit(20)
-  );
+  const commentsQuery = query(collection(db, REQUIREMENTS_COLLECTION, requirementId, "comments"), orderBy("createdAt", "desc"), limit(20));
   const snapshot = await getDocs(commentsQuery);
   return snapshot.docs.map((document) => normalizeComment(document.id, document.data()));
+}
+
+async function getRequirementVersions(requirementId) {
+  ensureDb();
+  const versionsQuery = query(collection(db, REQUIREMENTS_COLLECTION, requirementId, "versions"), orderBy("createdAt", "desc"), limit(15));
+  const snapshot = await getDocs(versionsQuery);
+  return snapshot.docs.map((document) => normalizeVersion(document.id, document.data()));
 }
 
 async function listRequirementDocs() {
@@ -266,6 +307,23 @@ async function listRequirementDocs() {
   const requirementsQuery = query(collection(db, REQUIREMENTS_COLLECTION), orderBy("updatedAt", "desc"), limit(PAGE_SIZE));
   const snapshot = await getDocs(requirementsQuery);
   return snapshot.docs.map((document) => normalizeRequirement(document.id, document.data()));
+}
+
+function buildVersionSnapshot(requirement, editorName, editorUid, changeNote) {
+  return {
+    title: requirement.title,
+    description: requirement.description,
+    type: requirement.type,
+    priority: requirement.priority,
+    status: requirement.status,
+    stakeholder: requirement.stakeholder,
+    project: requirement.project,
+    module: requirement.module,
+    editorName,
+    editorUid,
+    changeNote,
+    createdAt: serverTimestamp()
+  };
 }
 
 export function subscribeRequirements(callback, onError) {
@@ -279,6 +337,36 @@ export function subscribeRequirements(callback, onError) {
     },
     onError
   );
+}
+
+export function subscribeNotifications(uid, callback, onError) {
+  ensureDb();
+  if (!uid) {
+    callback([]);
+    return () => {};
+  }
+
+  const notificationsQuery = query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where("recipientUid", "==", uid),
+    orderBy("createdAt", "desc"),
+    limit(10)
+  );
+
+  return onSnapshot(
+    notificationsQuery,
+    (snapshot) => {
+      callback(snapshot.docs.map((document) => normalizeNotification(document.id, document.data())));
+    },
+    onError
+  );
+}
+
+export async function markNotificationRead(notificationId) {
+  ensureDb();
+  await updateDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId), {
+    read: true
+  });
 }
 
 export async function listRequirements() {
@@ -296,42 +384,71 @@ export async function getRequirementById(requirementId) {
   }
 
   const requirement = normalizeRequirement(documentSnap.id, documentSnap.data());
-  const [comments, activity] = await Promise.all([getRequirementComments(requirementId), getRequirementActivity(requirementId)]);
+  const [comments, activity, versions] = await Promise.all([
+    getRequirementComments(requirementId),
+    getRequirementActivity(requirementId),
+    getRequirementVersions(requirementId)
+  ]);
 
   return {
     ...requirement,
-    comments: comments.length > 0 ? comments : normalizeArray(documentSnap.data().comments).map((item, index) => normalizeComment(`legacy-comment-${index}`, item)),
-    activity: activity.length > 0 ? activity : normalizeArray(documentSnap.data().activity).map((item, index) => normalizeActivity(`legacy-activity-${index}`, item)),
+    comments,
+    activity,
+    versions,
     dependencies: requirement.dependencyIds
   };
+}
+
+export async function previewRequirementAnalysis(data) {
+  const requirements = await listRequirementDocs();
+  return analyzeRequirementDraft(data, requirements);
 }
 
 export async function createRequirementRecord(data) {
   ensureDb();
   const id = await getNextRequirementId();
+  const existingRequirements = await listRequirementDocs();
+  const analysis = analyzeRequirementDraft(
+    {
+      id,
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      priority: data.priority
+    },
+    existingRequirements
+  );
   const requirementRef = doc(db, REQUIREMENTS_COLLECTION, id);
   const activityRef = collection(db, REQUIREMENTS_COLLECTION, id, "activity");
-  const ownerName = data.ownerName || data.owner || "Unassigned";
-  const ownerUid = data.ownerUid || "";
+  const versionsRef = collection(db, REQUIREMENTS_COLLECTION, id, "versions");
+  const ownerName = data.ownerName || data.owner || data.stakeholder || "Unassigned";
+  const ownerUid = data.ownerUid || data.stakeholderUid || "";
   const createdByName = data.createdByName || ownerName;
   const createdByUid = data.createdByUid || ownerUid;
 
   await runTransaction(db, async (transaction) => {
     transaction.set(requirementRef, {
       title: data.title || "Untitled Requirement",
-      module: data.module || "General",
-      priority: data.priority || "Medium",
-      status: "Draft",
+      description: data.description || "",
+      type: data.type || analysis.typeSuggestion,
+      priority: data.priority || analysis.prioritySuggestion,
+      status: data.status || "Pending",
+      stakeholder: data.stakeholder || ownerName,
+      stakeholderUid: data.stakeholderUid || ownerUid,
       ownerName,
       ownerUid,
+      project: data.project || "Core Platform",
+      module: data.module || "General",
       sprint: data.sprint || "Backlog",
-      progress: 0,
-      description: data.description || "",
+      progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : 0,
       acceptanceCriteria: normalizeArray(data.acceptanceCriteria),
       dependencyIds: normalizeArray(data.dependencyIds || data.dependencies),
       tags: normalizeArray(data.tags),
+      approvals: [],
+      analysis,
       commentCount: 0,
       activityCount: 1,
+      versionCount: 1,
       createdByUid,
       createdByName,
       updatedByUid: createdByUid,
@@ -340,12 +457,26 @@ export async function createRequirementRecord(data) {
       updatedAt: serverTimestamp()
     });
 
-    const initialActivityRef = doc(activityRef);
-    transaction.set(initialActivityRef, {
+    transaction.set(doc(activityRef), {
       type: "created",
-      text: "Requirement created from the workbench.",
+      text: "Requirement created and submitted for review.",
       actorName: createdByName,
       actorUid: createdByUid,
+      createdAt: serverTimestamp()
+    });
+
+    transaction.set(doc(versionsRef), {
+      title: data.title || "Untitled Requirement",
+      description: data.description || "",
+      type: data.type || analysis.typeSuggestion,
+      priority: data.priority || analysis.prioritySuggestion,
+      status: data.status || "Pending",
+      stakeholder: data.stakeholder || ownerName,
+      project: data.project || "Core Platform",
+      module: data.module || "General",
+      editorName: createdByName,
+      editorUid: createdByUid,
+      changeNote: "Initial requirement version.",
       createdAt: serverTimestamp()
     });
   });
@@ -356,6 +487,7 @@ export async function createRequirementRecord(data) {
 export async function updateRequirementRecord(requirementId, data) {
   ensureDb();
   const requirementRef = doc(db, REQUIREMENTS_COLLECTION, requirementId);
+  const versionsRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "versions");
   const activityRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity");
   const requirementSnapshot = await getDoc(requirementRef);
 
@@ -364,37 +496,55 @@ export async function updateRequirementRecord(requirementId, data) {
   }
 
   const currentRequirement = normalizeRequirement(requirementSnapshot.id, requirementSnapshot.data());
+  const analysis = analyzeRequirementDraft(
+    {
+      id: requirementId,
+      title: data.title || currentRequirement.title,
+      description: data.description || currentRequirement.description,
+      type: data.type || currentRequirement.type,
+      priority: data.priority || currentRequirement.priority
+    },
+    (await listRequirementDocs()).filter((item) => item.id !== requirementId)
+  );
+
   const updates = {
     title: data.title || currentRequirement.title,
-    module: data.module || currentRequirement.module,
+    description: data.description || currentRequirement.description,
+    type: data.type || currentRequirement.type,
     priority: data.priority || currentRequirement.priority,
     status: data.status || currentRequirement.status,
+    stakeholder: data.stakeholder || currentRequirement.stakeholder,
+    stakeholderUid: data.stakeholderUid || currentRequirement.stakeholderUid,
     ownerName: data.ownerName || data.owner || currentRequirement.ownerName,
     ownerUid: data.ownerUid || currentRequirement.ownerUid,
+    project: data.project || currentRequirement.project,
+    module: data.module || currentRequirement.module,
     sprint: data.sprint || currentRequirement.sprint,
     progress: Number.isFinite(Number(data.progress)) ? Number(data.progress) : currentRequirement.progress,
-    description: data.description || currentRequirement.description,
-    acceptanceCriteria: normalizeArray(data.acceptanceCriteria).length > 0 ? normalizeArray(data.acceptanceCriteria) : currentRequirement.acceptanceCriteria,
-    dependencyIds: normalizeArray(data.dependencyIds || data.dependencies).length > 0
+    acceptanceCriteria: Array.isArray(data.acceptanceCriteria) ? normalizeArray(data.acceptanceCriteria) : currentRequirement.acceptanceCriteria,
+    dependencyIds: Array.isArray(data.dependencyIds || data.dependencies)
       ? normalizeArray(data.dependencyIds || data.dependencies)
       : currentRequirement.dependencyIds,
-    tags: normalizeArray(data.tags).length > 0 ? normalizeArray(data.tags) : currentRequirement.tags,
+    tags: Array.isArray(data.tags) ? normalizeArray(data.tags) : currentRequirement.tags,
+    analysis,
     updatedByUid: data.updatedByUid || currentRequirement.updatedByUid,
-    updatedByName: data.updatedByName || currentRequirement.updatedByName,
+    updatedByName: data.updatedByName || currentRequirement.updatedByName || "Workspace User",
     updatedAt: serverTimestamp()
   };
 
   await runTransaction(db, async (transaction) => {
-    transaction.update(requirementRef, updates);
+    transaction.set(doc(versionsRef), buildVersionSnapshot(currentRequirement, updates.updatedByName, updates.updatedByUid, "Saved previous version before update."));
+    transaction.update(requirementRef, {
+      ...updates,
+      versionCount: currentRequirement.versionCount + 1,
+      activityCount: currentRequirement.activityCount + 1
+    });
     transaction.set(doc(activityRef), {
       type: "updated",
       text: "Requirement details were updated.",
       actorName: updates.updatedByName,
       actorUid: updates.updatedByUid,
       createdAt: serverTimestamp()
-    });
-    transaction.update(requirementRef, {
-      activityCount: currentRequirement.activityCount + 1
     });
   });
 
@@ -407,101 +557,52 @@ export async function deleteRequirementRecord(requirementId) {
 }
 
 export async function createRequirementCommentRecord(requirementId, data) {
-  ensureDb();
-  const requirementRef = doc(db, REQUIREMENTS_COLLECTION, requirementId);
-  const commentsRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "comments");
-  const activityRef = collection(db, REQUIREMENTS_COLLECTION, requirementId, "activity");
-  const requirementSnapshot = await getDoc(requirementRef);
+  ensureFunctions();
+  const addComment = httpsCallable(functions, "addRequirementComment");
+  const result = await addComment({ requirementId, ...data });
+  return result.data;
+}
 
-  if (!requirementSnapshot.exists()) {
-    throw new Error("Requirement not found.");
-  }
-
-  const requirement = normalizeRequirement(requirementSnapshot.id, requirementSnapshot.data());
-  const commentData = {
-    authorName: data.authorName || data.author || "Workspace User",
-    authorUid: data.authorUid || "",
-    authorRole: data.authorRole || data.role || "user",
-    message: data.message || "",
-    createdAt: serverTimestamp()
-  };
-
-  const commentId = await runTransaction(db, async (transaction) => {
-    const newCommentRef = doc(commentsRef);
-    const newActivityRef = doc(activityRef);
-
-    transaction.set(newCommentRef, commentData);
-    transaction.set(newActivityRef, {
-      type: "comment",
-      text: `${commentData.authorName} added a new discussion comment.`,
-      actorName: commentData.authorName,
-      actorUid: commentData.authorUid,
-      createdAt: serverTimestamp()
-    });
-    transaction.update(requirementRef, {
-      commentCount: requirement.commentCount + 1,
-      activityCount: requirement.activityCount + 1,
-      updatedAt: serverTimestamp(),
-      updatedByUid: commentData.authorUid,
-      updatedByName: commentData.authorName
-    });
-
-    return newCommentRef.id;
-  });
-
-  const savedComment = await getDoc(doc(db, REQUIREMENTS_COLLECTION, requirementId, "comments", commentId));
-  return normalizeComment(savedComment.id, savedComment.data());
+export async function reviewRequirementRecord(requirementId, data) {
+  ensureFunctions();
+  const reviewRequirement = httpsCallable(functions, "reviewRequirement");
+  const result = await reviewRequirement({ requirementId, ...data });
+  return result.data;
 }
 
 export async function getDashboardMetrics() {
   const requirements = await listRequirementDocs();
-  const completionRate = averageProgress(requirements);
-  const completedCount = requirements.filter((requirement) => requirement.status === "Completed").length;
-  const blockedCount = requirements.filter((requirement) => requirement.status === "Blocked").length;
-  const inReviewCount = requirements.filter((requirement) => requirement.status === "In Review").length;
+  const pendingCount = requirements.filter((requirement) => requirement.status === "Pending").length;
+  const approvedCount = requirements.filter((requirement) => requirement.status === "Approved").length;
+  const rejectedCount = requirements.filter((requirement) => requirement.status === "Rejected").length;
+  const inProgressCount = requirements.filter((requirement) => requirement.status === "In Progress").length;
+  const highPriorityCount = requirements.filter((requirement) => requirement.priority === "High").length;
+  const qualityAlerts = requirements.filter((requirement) => !requirement.analysis.clarity.isClear).length;
 
   return {
     summary: {
       productName: "REMT",
       activeSprint: "Sprint 7",
-      completionRate,
-      ambiguityAlerts: blockedCount + inReviewCount,
-      stakeholderSatisfaction: Math.max(82, 100 - blockedCount * 4)
+      completionRate: averageProgress(requirements),
+      ambiguityAlerts: qualityAlerts,
+      stakeholderSatisfaction: Math.max(80, 100 - rejectedCount * 5),
+      portfolioSummary: summarizeRequirementPortfolio(requirements)
     },
     kpis: [
-      {
-        label: "Total Requirements",
-        value: String(requirements.length),
-        delta: `${requirements.filter((requirement) => requirement.status !== "Completed").length} still active`,
-        icon: "RF"
-      },
-      {
-        label: "Completion Rate",
-        value: `${completionRate}%`,
-        delta: `${completedCount} completed items`,
-        icon: "CP"
-      },
-      {
-        label: "Blocked Items",
-        value: String(blockedCount),
-        delta: blockedCount > 0 ? "Needs team attention" : "No blockers right now",
-        icon: "BL"
-      },
-      {
-        label: "In Review",
-        value: String(inReviewCount),
-        delta: "Awaiting approval and sign-off",
-        icon: "RV"
-      }
+      { label: "Total Requirements", value: String(requirements.length), delta: `${pendingCount} waiting review`, icon: "TR" },
+      { label: "Approved", value: String(approvedCount), delta: `${rejectedCount} rejected`, icon: "AP" },
+      { label: "In Progress", value: String(inProgressCount), delta: `${highPriorityCount} high priority`, icon: "IP" },
+      { label: "Clarity Alerts", value: String(qualityAlerts), delta: qualityAlerts > 0 ? "Needs rewrite attention" : "No major ambiguity", icon: "AI" }
     ],
-    timeline: buildTimeline(requirements),
+    timeline: requirements
+      .slice()
+      .sort((left, right) => priorityWeight(right.priority) - priorityWeight(left.priority))
+      .slice(0, 5)
+      .map((requirement) => `${requirement.id} is ${requirement.status.toLowerCase()} in ${requirement.project}/${requirement.module}.`),
     insights: buildInsights(requirements),
     featuredRequirements: requirements
       .slice()
-      .sort((left, right) => {
-        const priorityWeight = { Critical: 3, High: 2, Medium: 1, Low: 0 };
-        return (priorityWeight[right.priority] ?? 0) - (priorityWeight[left.priority] ?? 0);
-      })
+      .sort((left, right) => priorityWeight(right.priority) - priorityWeight(left.priority))
       .slice(0, 4)
       .map(toRequirementSummary)
   };
@@ -511,9 +612,11 @@ export async function getAnalyticsMetrics() {
   const requirements = await listRequirementDocs();
 
   return {
-    cards: countByStatus(requirements, ["Draft", "In Progress", "In Review", "Completed"]),
+    cards: countByStatus(requirements, ["Pending", "Approved", "Rejected", "In Progress"]),
     trend: buildBurndownTrend(requirements),
-    distribution: groupByModule(requirements)
+    distribution: groupByField(requirements, "project"),
+    typeDistribution: groupByField(requirements, "type"),
+    priorityDistribution: groupByField(requirements, "priority")
   };
 }
 
@@ -530,8 +633,28 @@ export async function getCollaborationMetrics() {
   );
 
   return {
-    threads: buildCollaborationThreads(requirements),
-    members: buildCollaborationMembers(requirements),
-    activity: buildActivityFeed(activityCollections.flat())
+    threads: requirements
+      .filter((requirement) => requirement.commentCount > 0 || requirement.status === "Pending" || requirement.status === "Rejected")
+      .slice(0, 6)
+      .map((requirement) => ({
+        id: `thread-${requirement.id}`,
+        title: requirement.title,
+        tag: requirement.id,
+        participants: Math.max(1, requirement.commentCount + requirement.approvals.length),
+        owner: requirement.stakeholder,
+        status: requirement.status,
+        updatedAt: createRelativeTimeLabel(requirement.updatedAt),
+        excerpt: requirement.analysis.summary || requirement.description
+      })),
+    members: groupByField(requirements, "stakeholder").map((item) => ({
+      name: item.name,
+      role: "Contributor",
+      focus: `${item.count} assigned requirement${item.count === 1 ? "" : "s"}`
+    })),
+    activity: activityCollections.flat().sort((left, right) => {
+      const leftTime = left.createdAt?.toDate ? left.createdAt.toDate().getTime() : new Date(left.createdAt || 0).getTime();
+      const rightTime = right.createdAt?.toDate ? right.createdAt.toDate().getTime() : new Date(right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    }).slice(0, 10)
   };
 }

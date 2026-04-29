@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../app/AuthContext";
+import { subscribeNotifications } from "../app/firestoreService";
 import { updateOwnProfile } from "../app/services/userService";
 import { Card, CardHeader, InfoCard } from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -18,6 +19,17 @@ function SettingsPage() {
     status: "idle",
     message: ""
   });
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(
+      profile?.uid,
+      (data) => setNotifications(data),
+      () => setNotifications([])
+    );
+
+    return unsubscribe;
+  }, [profile?.uid]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -105,7 +117,7 @@ function SettingsPage() {
       </Card>
 
       <Card className="border-fuchsia-400/20 bg-fuchsia-400/10">
-        <CardHeader eyebrow="Preferences" title="Notification controls" />
+        <CardHeader eyebrow="Preferences" title="Notification controls and recent alerts" />
 
         <div className="mt-6 grid gap-3">
           {["Email notifications", "Requirement status changes", "Access governance notices", "Weekly summary digest"].map((item) => (
@@ -119,6 +131,24 @@ function SettingsPage() {
               </span>
             </InfoCard>
           ))}
+        </div>
+
+        <div className="mt-6 grid gap-3">
+          {notifications.length > 0 ? (
+            notifications.map((item) => (
+              <InfoCard key={item.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <strong className="block text-sm text-white">{item.title}</strong>
+                  <span className="text-xs text-slate-400">{item.time}</span>
+                </div>
+                <p className="mt-2 text-sm text-slate-300">{item.message}</p>
+              </InfoCard>
+            ))
+          ) : (
+            <InfoCard>
+              <p className="text-sm text-slate-300">No recent notifications yet.</p>
+            </InfoCard>
+          )}
         </div>
       </Card>
     </div>

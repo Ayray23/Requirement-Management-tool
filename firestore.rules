@@ -60,19 +60,26 @@ service cloud.firestore {
     function validRequirementWrite() {
       return request.resource.data.keys().hasAll([
         "title",
+        "description",
+        "type",
         "module",
+        "project",
         "priority",
         "status",
+        "stakeholder",
+        "stakeholderUid",
         "ownerName",
         "ownerUid",
         "sprint",
         "progress",
-        "description",
         "acceptanceCriteria",
         "dependencyIds",
         "tags",
+        "approvals",
+        "analysis",
         "commentCount",
         "activityCount",
+        "versionCount",
         "createdByUid",
         "createdByName",
         "updatedByUid",
@@ -106,18 +113,7 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if isActive();
-        allow create: if isActive()
-          && request.resource.data.keys().hasOnly([
-            "authorName",
-            "authorUid",
-            "authorRole",
-            "message",
-            "createdAt"
-          ])
-          && request.resource.data.authorUid == request.auth.uid
-          && request.resource.data.message is string
-          && request.resource.data.message.size() > 0
-          && request.resource.data.message.size() <= 2000;
+        allow create: if false;
         allow update, delete: if isActive() && isAdmin();
       }
 
@@ -126,6 +122,20 @@ service cloud.firestore {
         allow create, update: if isActive() && isAdmin();
         allow delete: if false;
       }
+
+      match /versions/{versionId} {
+        allow read: if isActive();
+        allow create, update: if isActive() && isAdmin();
+        allow delete: if false;
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isActive() && request.auth.uid == resource.data.recipientUid;
+      allow update: if isActive()
+        && request.auth.uid == resource.data.recipientUid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(["read"]);
+      allow create, delete: if false;
     }
   }
 }

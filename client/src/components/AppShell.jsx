@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
+import { markNotificationRead, subscribeNotifications } from "../app/firestoreService";
 import { canManageRequirements, canManageUsers } from "../app/roles";
 import { Bell, Users, BarChart3, ClipboardList, LayoutDashboard, Settings, Shield, Sparkles } from "../app/icons";
 import Button from "./ui/Button";
@@ -17,6 +19,7 @@ function AppShell({ children }) {
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
   const profile = session.user;
+  const [notifications, setNotifications] = useState([]);
   const navItems = [
     ...baseNavItems.slice(0, 1),
     ...(canManageUsers(profile?.role) ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
@@ -25,15 +28,25 @@ function AppShell({ children }) {
     ...baseNavItems.slice(3)
   ];
 
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(
+      profile?.uid,
+      (data) => setNotifications(data),
+      () => setNotifications([])
+    );
+
+    return unsubscribe;
+  }, [profile?.uid]);
+
+  const unreadCount = notifications.filter((item) => !item.read).length;
+
   return (
     <div className="min-h-screen bg-remt-bg bg-remt-scene font-body text-slate-100">
       <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
         <aside className="border-r border-white/10 bg-slate-950/70 p-6 backdrop-blur-xl">
           <Card className="rounded-3xl bg-white/5 p-4">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-remt-brand font-display text-xl font-bold text-white">
-                R
-              </div>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-remt-brand font-display text-xl font-bold text-white">R</div>
               <div>
                 <strong className="block text-sm font-bold">REMT</strong>
                 <p className="text-xs text-slate-400">Requirement Intelligence</p>
@@ -72,7 +85,7 @@ function AppShell({ children }) {
                 <strong className="block text-sm">{profile?.name ?? "Workspace User"}</strong>
                 <p className="text-xs text-slate-400">
                   {profile?.role ?? "Guest"}
-                  {profile?.status ? ` • ${profile.status}` : ""}
+                  {profile?.status ? ` | ${profile.status}` : ""}
                 </p>
               </div>
             </div>
@@ -91,10 +104,21 @@ function AppShell({ children }) {
                   Search requirements, owners, and governance activity
                 </div>
                 <div className="flex gap-3">
-                  <Button type="button" variant="icon" size="icon">
+                  <Button
+                    type="button"
+                    variant="icon"
+                    size="icon"
+                    onClick={() => {
+                      notifications.filter((item) => !item.read).forEach((item) => {
+                        markNotificationRead(item.id).catch(() => {});
+                      });
+                      navigate("/settings");
+                    }}
+                  >
                     <Bell />
+                    {unreadCount > 0 ? <span className="ml-1 text-xs text-cyan-200">{unreadCount}</span> : null}
                   </Button>
-                  <Button type="button" variant="icon" size="icon">
+                  <Button type="button" variant="icon" size="icon" onClick={() => navigate("/collaboration")}>
                     <Users />
                   </Button>
                   <Button

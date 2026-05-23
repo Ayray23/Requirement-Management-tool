@@ -66,6 +66,13 @@ npm.cmd install --workspace client
 npm.cmd install --workspace server
 ```
 
+## Quality Guardrails
+
+- Use Node `20.x` to match deployment and the checked-in [.nvmrc](C:/Users/Owner/Desktop/Ray%20final%20year%20project/.nvmrc).
+- Run `npm run check` from the project root before pushing changes.
+- Vercel deploys the built frontend from `client/dist` using the root [vercel.json](C:/Users/Owner/Desktop/Ray%20final%20year%20project/vercel.json).
+- Client-side app routes are rewritten to `index.html`, which is required because the frontend uses React Router with browser history.
+
 ## Firebase Notes
 
 The project already includes:

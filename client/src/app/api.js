@@ -10,7 +10,12 @@ async function request(path, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed for ${path}`);
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch {}
+    throw new Error(errorMessage);
   }
 
   return response.json();

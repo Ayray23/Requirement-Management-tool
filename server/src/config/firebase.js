@@ -11,7 +11,7 @@ export function initializeFirebase() {
   const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
 
   if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
-    return null;
+    throw new Error('Firebase environment variables not configured');
   }
 
   firebaseApp = admin.initializeApp({

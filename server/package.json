@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "build:server": "echo 'Node.js server does not require build step'",
     "check": "node scripts/check.mjs"
   },
   "dependencies": {

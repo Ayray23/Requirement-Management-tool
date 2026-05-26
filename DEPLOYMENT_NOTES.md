@@ -10,9 +10,23 @@ Deployment and Secrets Setup
 
 2) Required environment variables (client - Vercel):
 - VITE_API_URL (e.g. https://requirement-management-tool.onrender.com/api)
-- VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID, VITE_FIREBASE_APP_ID (if using Firebase in production)
+- VITE_FIREBASE_API_KEY
+- VITE_FIREBASE_AUTH_DOMAIN
+- VITE_FIREBASE_PROJECT_ID
+- VITE_FIREBASE_STORAGE_BUCKET
+- VITE_FIREBASE_MESSAGING_SENDER_ID
+- VITE_FIREBASE_APP_ID
 
-3) How to add secrets on Render:
+3) Production environment variable values to set:
+- Render `CLIENT_URL` = your Vercel frontend URL, for example `https://requirement-management-tool-client.vercel.app`
+- Render `FIREBASE_PROJECT_ID` = your Firebase project ID (e.g. `remt-60ae7`)
+- Render `FIREBASE_CLIENT_EMAIL` = your Firebase admin client email
+- Render `FIREBASE_PRIVATE_KEY` = your Firebase private key, with newlines encoded as `\n`
+- Render `OPENAI_API_KEY` = your OpenAI API key if required by server features
+- Vercel `VITE_API_URL` = your Render backend URL + `/api`, for example `https://requirement-management-tool.onrender.com/api`
+- Vercel Firebase values only if frontend needs Firebase auth or client SDK integration
+
+4) How to add secrets on Render:
 - Open your service on Render.com
 - Go to "Environment" → "Environment Variables" → Add the keys above
 - Add `healthCheckPath=/api/health` in service settings or ensure the Render health check uses `/api/health`

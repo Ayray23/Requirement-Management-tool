@@ -15,6 +15,7 @@ Deployment and Secrets Setup
 3) How to add secrets on Render:
 - Open your service on Render.com
 - Go to "Environment" → "Environment Variables" → Add the keys above
+- Add `healthCheckPath=/api/health` in service settings or ensure the Render health check uses `/api/health`
 - For `FIREBASE_PRIVATE_KEY`, paste the full private key. If Render refuses newlines, replace actual newlines with `\n` when setting the value.
 
 4) How to add secrets on Vercel:

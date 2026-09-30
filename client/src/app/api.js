@@ -14,7 +14,9 @@ async function request(path, options = {}) {
     try {
       const errorData = await response.json();
       errorMessage = errorData.message || errorMessage;
-    } catch {}
+    } catch {
+      // Ignore malformed error responses and keep the HTTP status message.
+    }
     throw new Error(errorMessage);
   }
 
